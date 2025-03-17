@@ -13,6 +13,9 @@ export interface JobPost {
   responsibilities: string;
   requirements: string;
   benefits: string;
+  job_id?: string;
+  company_id?: string;
+  posted_at?: string;
 }
 
 const initialJobPost: JobPost = {
@@ -26,56 +29,6 @@ const initialJobPost: JobPost = {
   requirements: '',
   benefits: ''
 };
-
-// Sample job posts
-const sampleJobs: JobPost[] = [
-  {
-    title: 'Senior Frontend Developer',
-    department: 'Engineering',
-    location: 'Remote',
-    employmentType: 'Full-time',
-    experienceLevel: '5+ years',
-    salaryRange: '$120,000 - $160,000',
-    responsibilities: `• Lead the development of complex web applications
-• Architect scalable frontend solutions
-• Mentor junior developers
-• Collaborate with product and design teams
-• Implement best practices and coding standards`,
-    requirements: `• 5+ years of experience with React.js
-• Strong TypeScript knowledge
-• Experience with modern frontend tools
-• Excellent problem-solving skills
-• Strong communication abilities`,
-    benefits: `• Competitive salary
-• Remote work flexibility
-• Health insurance
-• 401(k) matching
-• Professional development budget`
-  },
-  {
-    title: 'Product Designer',
-    department: 'Design',
-    location: 'Hybrid',
-    employmentType: 'Full-time',
-    experienceLevel: '3+ years',
-    salaryRange: '$90,000 - $130,000',
-    responsibilities: `• Create user-centered designs by understanding business requirements
-• Design user flows, wireframes, and high-fidelity mockups
-• Conduct user research and usability testing
-• Collaborate with developers on implementation
-• Maintain and evolve our design system`,
-    requirements: `• 3+ years of product design experience
-• Proficiency in Figma and modern design tools
-• Strong portfolio demonstrating UX/UI skills
-• Experience with design systems
-• Excellent collaboration skills`,
-    benefits: `• Flexible work schedule
-• Health and dental insurance
-• Annual learning budget
-• Home office stipend
-• Regular team events`
-  }
-];
 
 const mockAIGenerate = async () => {
   // Simulated AI response - in real app, this would call an AI service
@@ -104,18 +57,94 @@ const mockAIGenerate = async () => {
   };
 };
 
-export default function JobPostCreation() {
+// Function to post a job to the backend API
+const postJobToBackend = async (jobPost: JobPost) => {
+  try {
+    const response = await fetch('http://localhost:8000/posts/', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'company-id': '859a0100-d3bd-4ff0-8b40-1f71d4c1f722',
+        'endpoint-api-key': '21c8ca93-2898-4708-acesphere-aae8-07c5d7b74a47',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: jobPost.title,
+        department: jobPost.department,
+        location: jobPost.location,
+        employmentType: jobPost.employmentType,
+        experienceLevel: jobPost.experienceLevel,
+        salaryRange: jobPost.salaryRange,
+        responsibilities: jobPost.responsibilities,
+        requirements: jobPost.requirements,
+        benefits: jobPost.benefits
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to post job');
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error posting job:', error);
+    throw error;
+  }
+};
+
+interface JobPostCreationProps {
+  initialJobs?: JobPost[];
+  onJobPosted?: () => void;
+}
+
+export default function JobPostCreation({ initialJobs = [], onJobPosted }: JobPostCreationProps) {
   const [showModal, setShowModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [jobPost, setJobPost] = useState<JobPost>(initialJobPost);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [postedJobs, setPostedJobs] = useState<JobPost[]>(sampleJobs);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [postedJobs, setPostedJobs] = useState<JobPost[]>(initialJobs);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPostedJobs([jobPost, ...postedJobs]);
-    setShowModal(false);
-    setShowPreview(true);
+    setIsSubmitting(true);
+    
+    try {
+      // Send job post to backend API
+      const result = await postJobToBackend(jobPost);
+      
+      // Save job ID in session storage
+      if (result.job_id) {
+        sessionStorage.setItem('lastPostedJobId', result.job_id);
+      }
+      
+      // Add job with ID to local state
+      const newJob = { 
+        ...jobPost, 
+        job_id: result.job_id,
+        posted_at: new Date().toISOString() 
+      };
+      
+      setPostedJobs([newJob, ...postedJobs]);
+      
+      // Close modal and show preview
+      setShowModal(false);
+      setShowPreview(true);
+      
+      // Notify parent component that a job was posted
+      if (onJobPosted) {
+        onJobPosted();
+      }
+      
+      // Reset form
+      setJobPost(initialJobPost);
+    } catch (error) {
+      console.error('Error submitting job post:', error);
+      alert('Failed to post job. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAIGenerate = async () => {
@@ -128,6 +157,18 @@ export default function JobPostCreation() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Format the posted date
+  const formatPostedDate = (dateString?: string) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   return (
@@ -143,19 +184,56 @@ export default function JobPostCreation() {
         </button>
       </div>
 
+      {/* Empty state */}
+      {postedJobs.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-lg shadow">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No job posts</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Get started by creating a new job post.
+          </p>
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+              New Job Post
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Job Listings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {postedJobs.map((job, index) => (
-          <JobListing
-            key={index}
-            job={job}
-            onView={(job) => {
-              setJobPost(job);
-              setShowPreview(true);
-            }}
-          />
-        ))}
-      </div>
+      {postedJobs.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          {postedJobs.map((job) => (
+            <JobListing
+              key={job.job_id || Math.random().toString()}
+              job={job}
+              postedDate={formatPostedDate(job.posted_at)}
+              onView={(job) => {
+                setJobPost(job);
+                setShowPreview(true);
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Job Posting Modal */}
       {showModal && (
@@ -168,7 +246,7 @@ export default function JobPostCreation() {
                 <h2 className="text-xl font-semibold text-gray-900">Post New Job</h2>
                 <div className="flex items-center space-x-4">
                   <button
-                    title="Only one templete available"
+                    title="Only one template available"
                     onClick={handleAIGenerate}
                     disabled={isGenerating}
                     className={`inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
@@ -234,9 +312,9 @@ export default function JobPostCreation() {
                         onChange={(e) => setJobPost({ ...jobPost, location: e.target.value })}
                       >
                         <option value="">Select location</option>
-                        <option value="remote">Remote</option>
-                        <option value="hybrid">Hybrid</option>
-                        <option value="onsite">On-site</option>
+                        <option value="Remote">Remote</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="On-site">On-site</option>
                       </select>
                     </div>
                     <div>
@@ -250,10 +328,10 @@ export default function JobPostCreation() {
                         onChange={(e) => setJobPost({ ...jobPost, employmentType: e.target.value })}
                       >
                         <option value="">Select type</option>
-                        <option value="full-time">Full-time</option>
-                        <option value="part-time">Part-time</option>
-                        <option value="contract">Contract</option>
-                        <option value="internship">Internship</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Internship">Internship</option>
                       </select>
                     </div>
                   </div>
@@ -338,9 +416,12 @@ export default function JobPostCreation() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    disabled={isSubmitting}
+                    className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                      isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                    }`}
                   >
-                    Post Job
+                    {isSubmitting ? 'Posting...' : 'Post Job'}
                   </button>
                 </div>
               </form>
