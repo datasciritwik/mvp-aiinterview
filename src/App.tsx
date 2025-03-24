@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Users, Building2, LogOut } from 'lucide-react';
+import { FileText, Users, Building2, LogOut, HelpCircle } from 'lucide-react';
 import JobPostCreation from './components/JobPostCreation';
 import InterviewScheduling from './components/InterviewScheduling';
 import { useAuth } from './context/AuthContext';
-import { auth } from './firebase/config';
-
-export const userId = auth.currentUser?.uid;
-console.log("app",userId)
+import { Link } from 'react-router-dom';
+// import { auth } from './firebase/config';
 
 // Define the job post interface
 export interface JobPost {
@@ -49,7 +47,7 @@ function App() {
         headers: {
           'accept': 'application/json',
           'endpoint-api-key': import.meta.env.VITE_API_HEADER,
-          'company-id': import.meta.env.VITE_COMPANY_ID
+          'company-id': currentUser?.uid || '' // Use Firebase userId here
         }
       });
 
@@ -129,8 +127,15 @@ function App() {
                   } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                 >
                   <Users className="w-4 h-4 mr-2" />
-                  Interviews
+                  Candidates
                 </button>
+                <Link
+                  to="/instructions"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  Instructions
+                </Link>
               </div>
             </div>
             <div className="flex items-center">

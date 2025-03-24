@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Building2, MapPin, Clock, Briefcase, Calendar, ArrowLeft, Loader } from 'lucide-react';
 import JobApplicationForm, { JobApplicationData } from './JobApplicationForm';
+import { useAuth } from '../context/AuthContext';
 
 // Define the JobPost interface if it's not imported from JobPostCreation
 interface JobPost {
@@ -25,6 +26,7 @@ const JobDetailPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchJobDetail = async () => {
@@ -37,12 +39,17 @@ const JobDetailPage: React.FC = () => {
           throw new Error('Job ID is missing');
         }
         
+        // Make sure we have a valid user
+        if (!currentUser?.uid) {
+          throw new Error('User not authenticated');
+        }
+        
         const response = await fetch(`${import.meta.env.VITE_BASEURL}/posts/openings/${jobId}`, {
           method: 'GET',
           headers: {
             'accept': 'application/json',
             'endpoint-api-key': import.meta.env.VITE_API_HEADER,
-            'company-id': import.meta.env.VITE_COMPANY_ID
+            'company-id': currentUser.uid // Use Firebase userId here
           }
         });
 
@@ -63,7 +70,7 @@ const JobDetailPage: React.FC = () => {
     if (jobId) {
       fetchJobDetail();
     }
-  }, [jobId]);
+  }, [jobId, currentUser]);
 
   const handleApplicationSubmit = async (formData: JobApplicationData) => {
     try {

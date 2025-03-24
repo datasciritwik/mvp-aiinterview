@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, Upload, ArrowRight, ArrowLeft, Loader2, PartyPopper } from 'lucide-react';
-import { auth } from '../firebase/config';
-export const userId = auth.currentUser?.uid;
-console.log("Job application", userId)
+// import { auth } from '../firebase/config';
+import { useAuth } from '../context/AuthContext';
+
 interface JobApplicationFormProps {
   jobId: string;
   jobTitle: string;
@@ -32,6 +32,7 @@ export default function JobApplicationForm({ jobId, jobTitle, onClose, onSubmit 
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [practiceQuestions, setPracticeQuestions] = useState<string[]>([]);
+  const { currentUser } = useAuth();
   
   const [formData, setFormData] = useState<JobApplicationData>({
     fullName: '',
@@ -72,7 +73,6 @@ export default function JobApplicationForm({ jobId, jobTitle, onClose, onSubmit 
   // Function to upload resume to the API
   const uploadResumeToAPI = async (file: File): Promise<string | null> => {
     try {
-      
       // Log the API URL and headers for debugging
       
       // First, get the signed URL
@@ -180,11 +180,16 @@ export default function JobApplicationForm({ jobId, jobTitle, onClose, onSubmit 
         throw new Error('Resume URL is missing');
       }
 
+      if (!currentUser?.uid) {
+        throw new Error('User not authenticated');
+      }
+
       const response = await fetch(`${import.meta.env.VITE_BASEURL}/apply/ats/score`, {
         method: 'POST',
         headers: {
           'accept': 'application/json',
           'endpoint-api-key': import.meta.env.VITE_API_HEADER,
+          'company-id': currentUser.uid, // Use Firebase userId here
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -514,5 +519,4 @@ export default function JobApplicationForm({ jobId, jobTitle, onClose, onSubmit 
         </div>
       </div>
     </div>
-  );
-}
+  )};

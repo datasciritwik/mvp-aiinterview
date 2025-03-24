@@ -4,8 +4,7 @@ import JobPostPreview from './JobPostPreview';
 import JobListing from './JobListing';
 
 import { auth } from '../firebase/config';
-export const userId = auth.currentUser?.uid;
-console.log("job post",userId)
+import { useAuth } from '../context/AuthContext';
 
 export interface JobPost {
   title: string;
@@ -62,13 +61,13 @@ const mockAIGenerate = async () => {
 };
 
 // Function to post a job to the backend API
-const postJobToBackend = async (jobPost: JobPost) => {
+const postJobToBackend = async (jobPost: JobPost, userId: string) => {
   try {
     const response = await fetch(`${import.meta.env.VITE_BASEURL}/posts/`, {
       method: 'POST',
       headers: {
         'accept': 'application/json',
-        'company-id': import.meta.env.VITE_COMPANY_ID,
+        'company-id': userId, // Use Firebase userId here
         'endpoint-api-key': import.meta.env.VITE_API_HEADER,
         'Content-Type': 'application/json'
       },
@@ -109,14 +108,22 @@ export default function JobPostCreation({ initialJobs = [], onJobPosted }: JobPo
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [postedJobs, setPostedJobs] = useState<JobPost[]>(initialJobs);
+  const { currentUser } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Send job post to backend API
-      const result = await postJobToBackend(jobPost);
+      // Get the userId from current user
+      const userId = currentUser?.uid;
+      
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Send job post to backend API with userId
+      const result = await postJobToBackend(jobPost, userId);
       
       // Save job ID in session storage
       if (result.job_id) {

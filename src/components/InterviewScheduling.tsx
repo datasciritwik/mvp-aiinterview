@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, CheckCircle, XCircle, Mail, X, Copy } from 'lucide-react';
-
-import { auth } from '../firebase/config';
-const userId = auth.currentUser?.uid;
-console.log("Interview scheduling",userId)
+import { useAuth } from '../context/AuthContext';
+// import { auth } from '../firebase/config';
 
 // Define the Candidate interface based on the API response
 interface Candidate {
@@ -49,13 +47,14 @@ export default function InterviewScheduling({ jobId }: InterviewSchedulingProps)
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'selected' | 'rejected'>('all');
   const [filterJobTitle, setFilterJobTitle] = useState<string>('all');
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const { currentUser } = useAuth();
 
   // Fetch candidates from API
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
         setLoading(true);
-        console.log(jobId)
+        console.log(jobId);
         const response = await fetch(`${import.meta.env.VITE_BASEURL}/apply/candidates`, {
           method: 'GET',
           headers: {
@@ -101,6 +100,10 @@ export default function InterviewScheduling({ jobId }: InterviewSchedulingProps)
   // Function to update candidate status
   const handleStatusChange = async (candidateId: string, status: 'selected' | 'rejected') => {
     try {
+      if (!currentUser?.uid) {
+        throw new Error('User not authenticated');
+      }
+      
       // Set optimistic UI update
       setCandidates(candidates.map(candidate =>
         candidate.id === candidateId ? { ...candidate, status } : candidate
@@ -111,10 +114,9 @@ export default function InterviewScheduling({ jobId }: InterviewSchedulingProps)
         method: 'PUT',
         headers: {
           'accept': 'application/json',
-          'Content-Type': 'application/json',
           'endpoint-api-key': import.meta.env.VITE_API_HEADER,
-          'company-id': import.meta.env.VITE_COMPANY_ID,
-          'job-id': jobId // Added jobId to the headers
+          'job-id': jobId,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
           candidate_id: parseInt(candidateId), 
@@ -416,5 +418,4 @@ Best regards,
         </div>
       )}
     </div>
-  );
-}
+  )};
