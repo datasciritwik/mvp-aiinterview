@@ -3,6 +3,10 @@ import { X, Plus, Wand2, Sparkles } from 'lucide-react';
 import JobPostPreview from './JobPostPreview';
 import JobListing from './JobListing';
 
+import { auth } from '../firebase/config';
+export const userId = auth.currentUser?.uid;
+console.log("job post",userId)
+
 export interface JobPost {
   title: string;
   department: string;
@@ -60,12 +64,12 @@ const mockAIGenerate = async () => {
 // Function to post a job to the backend API
 const postJobToBackend = async (jobPost: JobPost) => {
   try {
-    const response = await fetch('http://localhost:8000/posts/', {
+    const response = await fetch(`${import.meta.env.VITE_BASEURL}/posts/`, {
       method: 'POST',
       headers: {
         'accept': 'application/json',
-        'company-id': '859a0100-d3bd-4ff0-8b40-1f71d4c1f722',
-        'endpoint-api-key': '21c8ca93-2898-4708-acesphere-aae8-07c5d7b74a47',
+        'company-id': import.meta.env.VITE_COMPANY_ID,
+        'endpoint-api-key': import.meta.env.VITE_API_HEADER,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

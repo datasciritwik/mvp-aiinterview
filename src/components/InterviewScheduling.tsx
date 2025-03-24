@@ -1,11 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, CheckCircle, XCircle, Mail, X, Copy } from 'lucide-react';
-import {mockCandidates, Candidate} from "../data/data"
 
-const jobTitles = ['Senior Frontend Developer', 'Product Designer'];
+import { auth } from '../firebase/config';
+const userId = auth.currentUser?.uid;
+console.log("Interview scheduling",userId)
 
-export default function InterviewScheduling() {
-  const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates);
+// Define the Candidate interface based on the API response
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  jobTitle: string;
+  experience: string;
+  atsScore: number;
+  status: 'pending' | 'selected' | 'rejected';
+  resumeUrl: string;
+}
+
+// The API response interface
+interface ApiCandidate {
+  candidate_id: number;
+  name: string;
+  email: string;
+  phone: string;
+  job_title: string;
+  experience: string;
+  ats_score_generated: number;
+  status: string;
+  resume_link: string;
+  company_id: string;
+}
+
+interface InterviewSchedulingProps {
+  jobId: string;
+}
+
+const jobTitles = ['Senior Frontend Developer', 'Product Designer', 'Data Analyst'];
+
+export default function InterviewScheduling({ jobId }: InterviewSchedulingProps) {
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,10 +50,93 @@ export default function InterviewScheduling() {
   const [filterJobTitle, setFilterJobTitle] = useState<string>('all');
   const [showEmailModal, setShowEmailModal] = useState(false);
 
-  const handleStatusChange = (candidateId: string, status: 'selected' | 'rejected') => {
-    setCandidates(candidates.map(candidate =>
-      candidate.id === candidateId ? { ...candidate, status } : candidate
-    ));
+  // Fetch candidates from API
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        setLoading(true);
+        console.log(jobId)
+        const response = await fetch(`${import.meta.env.VITE_BASEURL}/apply/candidates`, {
+          method: 'GET',
+          headers: {
+            'accept': 'application/json',
+            'endpoint-api-key': import.meta.env.VITE_API_HEADER,
+            'job-id': jobId // Using the jobId prop here
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Transform API response to match our Candidate interface
+        const transformedCandidates: Candidate[] = data.candidate.map((apiCandidate: ApiCandidate) => ({
+          id: apiCandidate.candidate_id.toString(),
+          name: apiCandidate.name,
+          email: apiCandidate.email,
+          phone: apiCandidate.phone,
+          jobTitle: apiCandidate.job_title,
+          experience: apiCandidate.experience,
+          atsScore: apiCandidate.ats_score_generated,
+          status: apiCandidate.status.toLowerCase() as 'pending' | 'selected' | 'rejected',
+          resumeUrl: apiCandidate.resume_link
+        }));
+
+        setCandidates(transformedCandidates);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        console.error('Error fetching candidates:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (jobId) {
+      fetchCandidates();
+    }
+  }, [jobId]); // Added jobId as a dependency
+
+  // Function to update candidate status
+  const handleStatusChange = async (candidateId: string, status: 'selected' | 'rejected') => {
+    try {
+      // Set optimistic UI update
+      setCandidates(candidates.map(candidate =>
+        candidate.id === candidateId ? { ...candidate, status } : candidate
+      ));
+      
+      // Make API call to update status
+      const response = await fetch(`${import.meta.env.VITE_BASEURL}/apply/status`, {
+        method: 'PUT',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+          'endpoint-api-key': import.meta.env.VITE_API_HEADER,
+          'company-id': import.meta.env.VITE_COMPANY_ID,
+          'job-id': jobId // Added jobId to the headers
+        },
+        body: JSON.stringify({ 
+          candidate_id: parseInt(candidateId), 
+          status: status 
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update status: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log(result.message); // Log success message
+      
+    } catch (err) {
+      console.error('Error updating candidate status:', err);
+      // Revert the optimistic update on error
+      setCandidates(prev => [...prev]); // Trigger a re-fetch or restore from previous state
+      
+      // Show error to user
+      alert('Failed to update candidate status. Please try again.');
+    }
   };
 
   const handleViewResume = (candidate: Candidate) => {
@@ -62,6 +181,14 @@ Best regards,
     const matchesJobTitle = filterJobTitle === 'all' || candidate.jobTitle === filterJobTitle;
     return matchesSearch && matchesScore && matchesStatus && matchesJobTitle;
   });
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading candidates...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500 p-4">Error: {error}</div>;
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm">
@@ -134,74 +261,82 @@ Best regards,
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredCandidates.map((candidate) => (
-              <tr key={candidate.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{candidate.jobTitle}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{candidate.experience} years</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{candidate.email}</div>
-                  <div className="text-sm text-gray-500">{candidate.phone}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-sm rounded-full ${getScoreColor(candidate.atsScore)}`}>
-                    {candidate.atsScore}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-sm rounded-full ${
-                    candidate.status === 'selected' ? 'bg-green-100 text-green-800' :
-                    candidate.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {candidate.status.charAt(0).toUpperCase() + candidate.status.slice(1)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      onClick={() => handleViewResume(candidate)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="View Resume"
-                    >
-                      <Eye className="w-5 h-5" />
-                    </button>
-                    {candidate.status === 'selected' && (
+            {filteredCandidates.length > 0 ? (
+              filteredCandidates.map((candidate) => (
+                <tr key={candidate.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{candidate.jobTitle}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{candidate.experience}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{candidate.email}</div>
+                    <div className="text-sm text-gray-500">{candidate.phone}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-sm rounded-full ${getScoreColor(candidate.atsScore)}`}>
+                      {candidate.atsScore}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-sm rounded-full ${
+                      candidate.status === 'selected' ? 'bg-green-100 text-green-800' :
+                      candidate.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {candidate.status.charAt(0).toUpperCase() + candidate.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
                       <button
-                        onClick={() => {
-                          setSelectedCandidate(candidate);
-                          setShowEmailModal(true);
-                        }}
+                        onClick={() => handleViewResume(candidate)}
                         className="text-blue-600 hover:text-blue-900"
-                        title="Send Interview Email"
+                        title="View Resume"
                       >
-                        <Mail className="w-5 h-5" />
+                        <Eye className="w-5 h-5" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleStatusChange(candidate.id, 'selected')}
-                      className="text-green-600 hover:text-green-900"
-                      title="Select Candidate"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(candidate.id, 'rejected')}
-                      className="text-red-600 hover:text-red-900"
-                      title="Reject Candidate"
-                    >
-                      <XCircle className="w-5 h-5" />
-                    </button>
-                  </div>
+                      {candidate.status === 'selected' && (
+                        <button
+                          onClick={() => {
+                            setSelectedCandidate(candidate);
+                            setShowEmailModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Send Interview Email"
+                        >
+                          <Mail className="w-5 h-5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleStatusChange(candidate.id, 'selected')}
+                        className="text-green-600 hover:text-green-900"
+                        title="Select Candidate"
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(candidate.id, 'rejected')}
+                        className="text-red-600 hover:text-red-900"
+                        title="Reject Candidate"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                  No candidates found matching your filters.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

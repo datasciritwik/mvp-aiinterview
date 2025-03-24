@@ -26,13 +26,13 @@ export default function JobPostPreview({ jobPost, onClose }: JobPostPreviewProps
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-2xl font-semibold text-gray-900">Job Post Preview</h2>
             <div className="flex items-center space-x-4">
-              <button
+              {/* <button
                 onClick={handleShare}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 <Share2 className="w-4 h-4 mr-2" />
                 Share
-              </button>
+              </button> */}
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-500"
@@ -88,9 +88,9 @@ export default function JobPostPreview({ jobPost, onClose }: JobPostPreviewProps
             </div>
 
             <div className="mt-8 flex justify-center">
-              <button className="px-8 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">
+              {/* <button className="px-8 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">
                 Apply Now
-              </button>
+              </button> */}
             </div>
           </div>
         </div>

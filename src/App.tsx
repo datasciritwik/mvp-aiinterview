@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Users, PlusCircle, Copy, Eye, CheckCircle, XCircle, Search, Filter, ChevronRight, Building2 } from 'lucide-react';
+import { FileText, Users, Building2, LogOut } from 'lucide-react';
 import JobPostCreation from './components/JobPostCreation';
 import InterviewScheduling from './components/InterviewScheduling';
+import { useAuth } from './context/AuthContext';
+import { auth } from './firebase/config';
+
+export const userId = auth.currentUser?.uid;
+console.log("app",userId)
 
 // Define the job post interface
 export interface JobPost {
@@ -30,6 +35,8 @@ function App() {
   const [jobPosts, setJobPosts] = useState<JobPost[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const { currentUser, logout } = useAuth();
 
   // Function to fetch job posts from the API
   const fetchJobPosts = async () => {
@@ -37,12 +44,12 @@ function App() {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:8000/posts/openings', {
+      const response = await fetch(`${import.meta.env.VITE_BASEURL}/posts/openings`, {
         method: 'GET',
         headers: {
           'accept': 'application/json',
-          'endpoint-api-key': '21c8ca93-2898-4708-acesphere-aae8-07c5d7b74a47',
-          'company-id': '859a0100-d3bd-4ff0-8b40-1f71d4c1f722'
+          'endpoint-api-key': import.meta.env.VITE_API_HEADER,
+          'company-id': import.meta.env.VITE_COMPANY_ID
         }
       });
 
@@ -52,6 +59,11 @@ function App() {
 
       const data: JobsApiResponse = await response.json();
       setJobPosts(data.jobs);
+      
+      // Set the first job's ID as selected if we have jobs and no selection
+      if (data.jobs.length > 0 && !selectedJobId) {
+        setSelectedJobId(data.jobs[0].job_id || null);
+      }
     } catch (err) {
       console.error('Error fetching job posts:', err);
       setError('Failed to load job posts. Please try again.');
@@ -65,6 +77,16 @@ function App() {
     setActiveTab(tab);
     if (tab === 'jobs') {
       fetchJobPosts();
+    }
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // The redirect will be handled by the ProtectedRoute component
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
   };
 
@@ -111,6 +133,22 @@ function App() {
                 </button>
               </div>
             </div>
+            <div className="flex items-center">
+              {currentUser && (
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-700 mr-4">
+                    {currentUser.phoneNumber}
+                  </span>
+                  <button 
+                    onClick={handleLogout}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -124,7 +162,7 @@ function App() {
         ) : error && activeTab === 'jobs' ? (
           <div className="bg-red-50 p-4 rounded-md">
             <div className="flex">
-              <XCircle className="h-5 w-5 text-red-400" />
+              <div className="h-5 w-5 text-red-400">⚠️</div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">Error</h3>
                 <div className="text-sm text-red-700">{error}</div>
@@ -140,7 +178,13 @@ function App() {
         ) : activeTab === 'jobs' ? (
           <JobPostCreation initialJobs={jobPosts} onJobPosted={fetchJobPosts} />
         ) : (
-          <InterviewScheduling />
+          selectedJobId ? (
+            <InterviewScheduling jobId={selectedJobId} />
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Please select a job post to view candidates.</p>
+            </div>
+          )
         )}
       </main>
     </div>
