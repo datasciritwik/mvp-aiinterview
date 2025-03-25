@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, CheckCircle, XCircle, Mail, X, Copy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-// import { auth } from '../firebase/config';
 
 // Define the Candidate interface based on the API response
 interface Candidate {
@@ -54,7 +53,6 @@ export default function InterviewScheduling({ jobId }: InterviewSchedulingProps)
     const fetchCandidates = async () => {
       try {
         setLoading(true);
-        console.log(jobId);
         const response = await fetch(`${import.meta.env.VITE_BASEURL}/apply/candidates`, {
           method: 'GET',
           headers: {

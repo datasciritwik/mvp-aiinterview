@@ -8,6 +8,7 @@ import UserInstructions from './components/UserInstructions.tsx' // Import the n
 import { AuthProvider } from './context/AuthContext.tsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.tsx'
 import './index.css'
+import VideoChatWithExecution from './components/ImprovedVideoChat.tsx'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -25,6 +26,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/instructions" element={
             <ProtectedRoute>
               <UserInstructions />
+            </ProtectedRoute>
+          } />
+          {/* Add the new AI InterView Demo route */}
+          <Route path="/interview" element={
+            <ProtectedRoute>
+              <VideoChatWithExecution />
             </ProtectedRoute>
           } />
         </Routes>

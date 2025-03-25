@@ -35,7 +35,7 @@ const PhoneAuth: React.FC = () => {
       // Validate phone number format first
       const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
       if (!/^\+[1-9]\d{1,14}$/.test(formattedPhoneNumber)) {
-        throw new Error('Please enter a valid phone number with country code (e.g., +1 for US)');
+        throw new Error('Please enter a valid phone number with country code (e.g., +91 for IND)');
       }
       
       console.log('Starting phone verification for:', formattedPhoneNumber);
@@ -107,12 +107,12 @@ const PhoneAuth: React.FC = () => {
               type="tel"
               value={phoneNumber}
               onChange={handlePhoneChange}
-              placeholder="+1 234 567 8900"
+              placeholder="+912345678900"
               className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Include country code (e.g., +1 for US)
+              Include country code (e.g., +91 for IND)
             </p>
           </div>
 

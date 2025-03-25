@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Handle specific Firebase Auth errors
       if (error.code === 'auth/invalid-phone-number') {
-        throw new Error('Invalid phone number format. Please include country code (+1 for US).');
+        throw new Error('Invalid phone number format. Please include country code (+91 for IND).');
       } else if (error.code === 'auth/captcha-check-failed') {
         throw new Error('reCAPTCHA verification failed. Please try again.');
       } else if (error.code === 'auth/quota-exceeded') {
