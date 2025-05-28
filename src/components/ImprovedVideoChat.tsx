@@ -21,6 +21,7 @@ const VideoChatWithExecution: React.FC = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
   const logsContainerRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     return () => {
@@ -195,6 +196,25 @@ const VideoChatWithExecution: React.FC = () => {
     return `${mins}:${secs}`;
   };
 
+  const handleSubmitInterview = () => {
+    // Add your interview submission logic here
+    addMessage('system', 'Interview submitted successfully');
+  };
+
+  const handleSendMessage = () => {
+    if (chatInputRef.current && chatInputRef.current.value.trim()) {
+      addMessage('user', chatInputRef.current.value.trim());
+      chatInputRef.current.value = '';
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex">
       {/* Left side - Code Editor */}
@@ -268,14 +288,21 @@ const VideoChatWithExecution: React.FC = () => {
         <div className="flex-1 bg-gray-100 flex flex-col">
           <div className="p-4 font-medium text-gray-700 bg-gray-200 flex justify-between items-center">
             <span>Logs/Chat</span>
-            <button className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
+            <button 
+              onClick={handleSubmitInterview}
+              className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+            >
               Submit Interview
             </button>
           </div>
           <div 
-            ref={logsContainerRef} 
-            className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
-            style={{ maxHeight: 'calc(100vh - 64px - 260px)' }}
+            ref={logsContainerRef}
+            className="flex-1 overflow-y-auto p-4 space-y-3"
+            style={{ 
+              maxHeight: 'calc(100vh - 64px - 260px)',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#9CA3AF #E5E7EB'
+            }}
           >
             {messages.map((message, index) => (
               <div
@@ -292,15 +319,21 @@ const VideoChatWithExecution: React.FC = () => {
               </div>
             ))}
           </div>
+
           <div className="p-4 bg-gray-700">
             <div className="flex items-center">
               <textarea
+                ref={chatInputRef}
                 placeholder="Type here..."
                 className="flex-1 px-4 py-2 rounded bg-gray-600 text-white placeholder-gray-400 focus:outline-none resize-none"
                 rows={2}
                 style={{ minHeight: '60px', wordWrap: 'break-word' }}
+                onKeyPress={handleKeyPress}
               />
-              <button className="ml-2 px-4 py-2 h-full bg-gray-600 rounded">
+              <button 
+                onClick={handleSendMessage}
+                className="ml-2 px-4 py-2 h-full bg-gray-600 rounded hover:bg-gray-500 transition-colors"
+              >
                 <span className="transform rotate-90 inline-block text-white">➤</span>
               </button>
             </div>
