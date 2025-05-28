@@ -219,18 +219,7 @@ const VideoChatWithExecution: React.FC = () => {
     try {
       setStreamError(null);
       
-      // First, request fullscreen immediately after user click
-      if (appContainerRef.current && !document.fullscreenElement) {
-        try {
-          await appContainerRef.current.requestFullscreen();
-        } catch (fullscreenError) {
-          console.error("Fullscreen error:", fullscreenError);
-          addMessage('system', 'Warning: Could not enter fullscreen mode. Recording will continue.');
-          // Continue with recording even if fullscreen fails
-        }
-      }
-      
-      // Request screen capture
+      // First request screen capture
       const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
         video: {
           displaySurface: 'browser' as any
@@ -240,6 +229,22 @@ const VideoChatWithExecution: React.FC = () => {
       
       // Store screen stream reference
       screenStreamRef.current = displayStream;
+      
+      // Now enter fullscreen mode after screen is shared
+      if (appContainerRef.current && !document.fullscreenElement) {
+        try {
+          await appContainerRef.current.requestFullscreen();
+        } catch (fullscreenError) {
+          console.error("Fullscreen error:", fullscreenError);
+          // If fullscreen fails, stop the streams and return
+          if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(track => track.stop());
+            screenStreamRef.current = null;
+          }
+          addMessage('system', 'Recording requires fullscreen mode. Please allow fullscreen.');
+          return;
+        }
+      }
       
       // If possible, check if the user selected the current tab
       const screenVideoTrack = displayStream.getVideoTracks()[0];
