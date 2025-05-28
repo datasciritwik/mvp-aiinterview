@@ -204,9 +204,6 @@ const VideoChatWithExecution: React.FC = () => {
             <div className="flex items-center">
               <span className="text-white font-medium">Code Editor</span>
             </div>
-            <button className="px-4 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
-              Submit Code
-            </button>
           </div>
           <div className="flex-1">
             <ExecutableEditor
@@ -275,7 +272,11 @@ const VideoChatWithExecution: React.FC = () => {
               Submit Interview
             </button>
           </div>
-          <div ref={logsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div 
+            ref={logsContainerRef} 
+            className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+            style={{ maxHeight: 'calc(100vh - 64px - 260px)' }}
+          >
             {messages.map((message, index) => (
               <div
                 key={index}
