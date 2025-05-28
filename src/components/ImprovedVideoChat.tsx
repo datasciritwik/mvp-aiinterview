@@ -93,21 +93,6 @@ const VideoChatWithExecution: React.FC = () => {
     };
   }, [isRecording]);
   
-  // Request fullscreen mode
-  const enterFullscreenMode = async () => {
-    try {
-      if (appContainerRef.current && !document.fullscreenElement) {
-        await appContainerRef.current.requestFullscreen();
-        return true;
-      }
-      return !!document.fullscreenElement;
-    } catch (err) {
-      console.error("Error entering fullscreen:", err);
-      addMessage('system', `Fullscreen error: ${err instanceof Error ? err.message : "Failed to enter fullscreen"}`);
-      return false;
-    }
-  };
-  
   // Exit fullscreen mode
   const exitFullscreenMode = async () => {
     try {
@@ -234,8 +219,18 @@ const VideoChatWithExecution: React.FC = () => {
     try {
       setStreamError(null);
       
-      // First request screen capture (before entering fullscreen)
-      // This way the user can select their screen/tab first
+      // First, request fullscreen immediately after user click
+      if (appContainerRef.current && !document.fullscreenElement) {
+        try {
+          await appContainerRef.current.requestFullscreen();
+        } catch (fullscreenError) {
+          console.error("Fullscreen error:", fullscreenError);
+          addMessage('system', 'Warning: Could not enter fullscreen mode. Recording will continue.');
+          // Continue with recording even if fullscreen fails
+        }
+      }
+      
+      // Request screen capture
       const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
         video: {
           displaySurface: 'browser' as any
@@ -246,18 +241,6 @@ const VideoChatWithExecution: React.FC = () => {
       // Store screen stream reference
       screenStreamRef.current = displayStream;
       
-      // Now enter fullscreen mode after user has selected the screen
-      const fullscreenSuccess = await enterFullscreenMode();
-      if (!fullscreenSuccess) {
-        // If fullscreen fails, stop the streams and return
-        if (screenStreamRef.current) {
-          screenStreamRef.current.getTracks().forEach(track => track.stop());
-          screenStreamRef.current = null;
-        }
-        addMessage('system', 'Recording requires fullscreen mode. Please allow fullscreen.');
-        return;
-      }
-      
       // If possible, check if the user selected the current tab
       const screenVideoTrack = displayStream.getVideoTracks()[0];
       if (screenVideoTrack?.getSettings) {
@@ -267,7 +250,7 @@ const VideoChatWithExecution: React.FC = () => {
         }
       }
       
-      // Request webcam access after screen capture and fullscreen are established
+      // Request webcam access after screen capture
       const webcamStream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
         audio: true 
