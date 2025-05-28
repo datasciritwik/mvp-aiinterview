@@ -196,8 +196,7 @@ const VideoChatWithExecution: React.FC = () => {
         try {
           if (recordedChunksRef.current.length > 0) {
             const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-            await uploadRecording(blob);  // Use await to ensure upload completes
-            saveRecordingLocally(blob);   // Also save locally
+            saveRecordingLocally(blob);
             recordedChunksRef.current = [];
           }
         } catch (error) {
@@ -354,61 +353,6 @@ const VideoChatWithExecution: React.FC = () => {
     } catch (err) {
       console.error('Error saving recording locally:', err);
       addMessage('system', `Error saving locally: ${err instanceof Error ? err.message : "Unknown error occurred"}`);
-    }
-  };
-  
-  // Upload the recording via API
-  const uploadRecording = async (blob: Blob) => {
-    try {
-      // Now upload via API
-      addMessage('system', 'Uploading recording...');
-      
-      const fileName = 'interview_recording.webm';
-      
-      // Get signed URL from API
-      const apiResponse = await fetch(`${import.meta.env.VITE_BASEURL}/interview/upload`, {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'endpoint-api-key': import.meta.env.VITE_API_HEADER,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          company_name: "VIDEODEMO",
-          file_name: fileName
-        })
-      });
-      console.log(apiResponse)
-      if (!apiResponse.ok) {
-        throw new Error(`API error: ${apiResponse.status}`);
-      }
-      
-      const responseData = await apiResponse.json();
-      console.log("API response:", responseData);
-      
-      if (!responseData.signed_url) {
-        throw new Error('No signed URL received from API');
-      }
-      
-      // Upload to the signed URL
-      const uploadResponse = await fetch(responseData.signed_url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'video/webm'
-        },
-        body: blob
-      });
-      
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload error: ${uploadResponse.status}`);
-      }
-      
-      addMessage('system', 'Recording uploaded successfully!');
-      return true;
-    } catch (err) {
-      console.error('Error uploading recording:', err);
-      addMessage('system', `Upload error: ${err instanceof Error ? err.message : "Unknown error occurred"}`);
-      return false;
     }
   };
   
