@@ -20,6 +20,7 @@ const VideoChatWithExecution: React.FC = () => {
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
@@ -46,6 +47,13 @@ const VideoChatWithExecution: React.FC = () => {
       }
     };
   }, [isRecording]);
+
+  // Auto-scroll logs to bottom when new messages are added
+  useEffect(() => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const setupMediaRecorder = (stream: MediaStream) => {
     try {
@@ -267,7 +275,7 @@ const VideoChatWithExecution: React.FC = () => {
               Submit Interview
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div ref={logsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -289,7 +297,7 @@ const VideoChatWithExecution: React.FC = () => {
                 placeholder="Type here..."
                 className="flex-1 px-4 py-2 rounded bg-gray-600 text-white placeholder-gray-400 focus:outline-none resize-none"
                 rows={2}
-                style={{ minHeight: '60px' }}
+                style={{ minHeight: '60px', wordWrap: 'break-word' }}
               />
               <button className="ml-2 px-4 py-2 h-full bg-gray-600 rounded">
                 <span className="transform rotate-90 inline-block text-white">➤</span>
