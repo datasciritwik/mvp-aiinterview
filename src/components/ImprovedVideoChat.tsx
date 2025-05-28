@@ -216,26 +216,24 @@ const VideoChatWithExecution: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
+    <div className="h-screen bg-gray-900 flex overflow-hidden">
       {/* Left side - Code Editor */}
-      <div className="w-3/5 border-r border-gray-700">
-        <div className="h-screen flex flex-col">
-          <div className="flex items-center justify-between bg-gray-800 px-4 py-2">
-            <div className="flex items-center">
-              <span className="text-white font-medium">Code Editor</span>
-            </div>
+      <div className="w-3/5 border-r border-gray-700 flex flex-col">
+        <div className="flex items-center justify-between bg-gray-800 px-4 py-2">
+          <div className="flex items-center">
+            <span className="text-white font-medium">Code Editor</span>
           </div>
-          <div className="flex-1">
-            <ExecutableEditor
-              initialCode={code}
-              onChange={setCode}
-            />
-          </div>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <ExecutableEditor
+            initialCode={code}
+            onChange={setCode}
+          />
         </div>
       </div>
 
       {/* Right side - Video and Chat */}
-      <div className="w-2/5 flex flex-col h-screen">
+      <div className="w-2/5 flex flex-col h-full">
         {/* Video Preview */}
         <div className="relative bg-gray-800 h-64">
           <video
@@ -285,7 +283,7 @@ const VideoChatWithExecution: React.FC = () => {
         </div>
 
         {/* Chat/Logs Section */}
-        <div className="flex-1 bg-gray-100 flex flex-col">
+        <div className="flex-1 flex flex-col bg-gray-100">
           <div className="p-4 font-medium text-gray-700 bg-gray-200 flex justify-between items-center">
             <span>Logs/Chat</span>
             <button 
