@@ -32,13 +32,14 @@ const VideoChatWithExecution: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { type: 'system', text: 'Session started' },
     { type: 'user', text: 'Ready to start your interview recording?' },
-    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam and audio.' }
+    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam and system audio.' }
   ]);
   
   // Refs
   const webcamRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
+  const systemAudioStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
   
@@ -72,11 +73,11 @@ const VideoChatWithExecution: React.FC = () => {
   }, [isRecording]);
 
   // Helper function to handle MediaRecorder setup
-  const setupMediaRecorder = (stream: MediaStream) => {
+  const setupMediaRecorder = (combinedStream: MediaStream) => {
     try {
       // Initialize media recorder with MIME options for better compatibility
       const options = { mimeType: getSupportedMimeType() };
-      const mediaRecorder = new MediaRecorder(stream, options);
+      const mediaRecorder = new MediaRecorder(combinedStream, options);
       mediaRecorderRef.current = mediaRecorder;
       
       // Collect recorded chunks
@@ -109,40 +110,66 @@ const VideoChatWithExecution: React.FC = () => {
     }
   };
   
-  // Start recording webcam and audio
+  // Start recording webcam and system audio
   const startRecording = async () => {
     try {
       setStreamError(null);
       
-      // Request webcam and audio access
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
+      // First get system audio using getDisplayMedia
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: false, // We don't need the video
+        audio: true // We only want system audio
+      });
+      
+      // Store system audio stream reference
+      systemAudioStreamRef.current = displayStream;
+      
+      // Now get webcam and mic
+      const webcamStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true,
+        audio: true // This gets microphone audio
       });
       
       // Store webcam stream reference
-      webcamStreamRef.current = stream;
+      webcamStreamRef.current = webcamStream;
       
       // Set up display for webcam preview
       if (webcamRef.current) {
-        webcamRef.current.srcObject = stream;
+        webcamRef.current.srcObject = webcamStream;
         webcamRef.current.muted = true;
       }
       
-      // Setup and start media recorder
-      setupMediaRecorder(stream);
+      // Combine all audio tracks and video track
+      const audioTracks = [
+        ...displayStream.getAudioTracks(), // System audio
+        ...webcamStream.getAudioTracks()   // Microphone audio
+      ];
+      const videoTrack = webcamStream.getVideoTracks()[0]; // Webcam video
+      
+      // Create a new MediaStream with all tracks
+      const combinedStream = new MediaStream([
+        videoTrack,
+        ...audioTracks
+      ]);
+      
+      // Setup and start media recorder with combined stream
+      setupMediaRecorder(combinedStream);
       
       // Update recording state
       setIsRecording(true);
       
       // Add message to log
-      addMessage('system', 'Recording started with webcam and audio');
+      addMessage('system', 'Recording started with webcam and system audio');
       
     } catch (err) {
       // Cleanup any streams that might have been created
       if (webcamStreamRef.current) {
         webcamStreamRef.current.getTracks().forEach(track => track.stop());
         webcamStreamRef.current = null;
+      }
+      if (systemAudioStreamRef.current) {
+        systemAudioStreamRef.current.getTracks().forEach(track => track.stop());
+        systemAudioStreamRef.current = null;
       }
       
       console.error("Error starting recording:", err);
@@ -168,6 +195,11 @@ const VideoChatWithExecution: React.FC = () => {
   const toggleMute = () => {
     if (webcamStreamRef.current) {
       webcamStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = isMuted;
+      });
+    }
+    if (systemAudioStreamRef.current) {
+      systemAudioStreamRef.current.getAudioTracks().forEach(track => {
         track.enabled = isMuted;
       });
     }
@@ -207,6 +239,11 @@ const VideoChatWithExecution: React.FC = () => {
     if (webcamStreamRef.current) {
       webcamStreamRef.current.getTracks().forEach(track => track.stop());
       webcamStreamRef.current = null;
+    }
+    
+    if (systemAudioStreamRef.current) {
+      systemAudioStreamRef.current.getTracks().forEach(track => track.stop());
+      systemAudioStreamRef.current = null;
     }
     
     if (webcamRef.current) {
@@ -407,7 +444,7 @@ const VideoChatWithExecution: React.FC = () => {
               {isRecording && (
                 <div className="text-xs bg-amber-50 text-amber-800 p-2 rounded flex items-center">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  Recording in progress. Your webcam and audio are being captured.
+                  Recording in progress. Your webcam and system audio are being captured.
                 </div>
               )}
             </div>
