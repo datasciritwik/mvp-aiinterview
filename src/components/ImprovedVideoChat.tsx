@@ -32,16 +32,17 @@ const VideoChatWithExecution: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { type: 'system', text: 'Session started' },
     { type: 'user', text: 'Ready to start your interview recording?' },
-    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam and microphone.' }
+    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam and audio.' }
   ]);
   
   // Refs
   const webcamRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
-  const systemAudioStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   
   // Clean up function when component unmounts
   useEffect(() => {
@@ -49,6 +50,9 @@ const VideoChatWithExecution: React.FC = () => {
       stopRecording();
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
       }
     };
   }, []);
@@ -110,57 +114,94 @@ const VideoChatWithExecution: React.FC = () => {
     }
   };
   
-  // Start recording webcam and microphone
+  // Start recording with system audio
   const startRecording = async () => {
     try {
       setStreamError(null);
-      
-      // Get webcam and mic only - removing system audio capture for better compatibility
-      const webcamStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true,
-        audio: true // This gets microphone audio only
+
+      // Initialize audio context
+      audioContextRef.current = new AudioContext();
+      audioDestinationRef.current = audioContextRef.current.createMediaStreamDestination();
+
+      // Get system audio through display capture
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: false,
+        audio: true
       });
-      
+
+      // Get webcam and microphone
+      const webcamStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+
+      // Connect system audio to audio context
+      const systemAudioSource = audioContextRef.current.createMediaStreamSource(displayStream);
+      systemAudioSource.connect(audioDestinationRef.current);
+
+      // Connect microphone to audio context
+      const micAudioSource = audioContextRef.current.createMediaStreamSource(webcamStream);
+      micAudioSource.connect(audioDestinationRef.current);
+
+      // Create a combined stream with webcam video and mixed audio
+      const combinedStream = new MediaStream([
+        ...webcamStream.getVideoTracks(),
+        ...audioDestinationRef.current.stream.getAudioTracks()
+      ]);
+
       // Store webcam stream reference
-      webcamStreamRef.current = webcamStream;
-      
+      webcamStreamRef.current = combinedStream;
+
       // Set up display for webcam preview
       if (webcamRef.current) {
         webcamRef.current.srcObject = webcamStream;
         webcamRef.current.muted = true;
       }
-      
-      // Setup and start media recorder with webcam stream
-      setupMediaRecorder(webcamStream);
-      
+
+      // Setup and start media recorder with combined stream
+      setupMediaRecorder(combinedStream);
+
       // Update recording state
       setIsRecording(true);
-      
+
       // Add message to log
-      addMessage('system', 'Recording started with webcam and microphone');
-      
+      addMessage('system', 'Recording started with webcam, microphone, and system audio');
+
+      // Handle when user ends system audio sharing
+      displayStream.getAudioTracks()[0].onended = () => {
+        if (isRecording) {
+          addMessage('system', 'System audio sharing ended');
+          stopRecording();
+        }
+      };
+
     } catch (err) {
       // Handle specific error types
       let errorMessage = "Failed to start recording";
       
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          errorMessage = "Permission denied. Please allow access to camera and microphone.";
+          errorMessage = "Permission denied. Please allow access to audio and camera.";
         } else if (err.name === 'NotFoundError') {
-          errorMessage = "Camera or microphone not found. Please check your device connections.";
+          errorMessage = "Audio device or camera not found. Please check your connections.";
         } else if (err.name === 'NotReadableError') {
-          errorMessage = "Could not access your camera or microphone. They might be in use by another application.";
+          errorMessage = "Could not access your devices. They might be in use by another application.";
         } else if (err.name === 'NotSupportedError') {
-          errorMessage = "Your browser doesn't support the required recording features. Please try using Chrome or Firefox.";
+          errorMessage = "Your browser doesn't support the required recording features.";
         } else {
           errorMessage = err.message;
         }
       }
       
-      // Cleanup any streams that might have been created
+      // Cleanup
       if (webcamStreamRef.current) {
         webcamStreamRef.current.getTracks().forEach(track => track.stop());
         webcamStreamRef.current = null;
+      }
+      
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
       }
       
       console.error("Error starting recording:", err);
@@ -205,7 +246,7 @@ const VideoChatWithExecution: React.FC = () => {
       document.body.appendChild(a);
       a.click();
       
-      // Clean up the local URL
+      // Clean up
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
@@ -227,6 +268,11 @@ const VideoChatWithExecution: React.FC = () => {
       webcamStreamRef.current = null;
     }
     
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
     if (webcamRef.current) {
       webcamRef.current.srcObject = null;
     }
@@ -235,7 +281,6 @@ const VideoChatWithExecution: React.FC = () => {
     setRecordingTime(0);
     setIsMuted(false);
     
-    // Add message to log
     addMessage('system', 'Recording stopped');
   };
   
@@ -425,7 +470,7 @@ const VideoChatWithExecution: React.FC = () => {
               {isRecording && (
                 <div className="text-xs bg-amber-50 text-amber-800 p-2 rounded flex items-center">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  Recording in progress. Your webcam and microphone are being captured.
+                  Recording in progress. Your webcam, microphone, and system audio are being captured.
                 </div>
               )}
             </div>
