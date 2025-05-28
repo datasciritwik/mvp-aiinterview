@@ -119,9 +119,26 @@ const VideoChatWithExecution: React.FC = () => {
     try {
       setStreamError(null);
 
+      // Get webcam and microphone first
+      const webcamStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+
+      // Store webcam stream reference and set up preview
+      webcamStreamRef.current = webcamStream;
+      if (webcamRef.current) {
+        webcamRef.current.srcObject = webcamStream;
+        webcamRef.current.muted = true;
+      }
+
       // Initialize audio context
       audioContextRef.current = new AudioContext();
       audioDestinationRef.current = audioContextRef.current.createMediaStreamDestination();
+
+      // Connect microphone to audio context
+      const micAudioSource = audioContextRef.current.createMediaStreamSource(webcamStream);
+      micAudioSource.connect(audioDestinationRef.current);
 
       // Get system audio through display capture
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -129,34 +146,15 @@ const VideoChatWithExecution: React.FC = () => {
         audio: true
       });
 
-      // Get webcam and microphone
-      const webcamStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-
       // Connect system audio to audio context
       const systemAudioSource = audioContextRef.current.createMediaStreamSource(displayStream);
       systemAudioSource.connect(audioDestinationRef.current);
-
-      // Connect microphone to audio context
-      const micAudioSource = audioContextRef.current.createMediaStreamSource(webcamStream);
-      micAudioSource.connect(audioDestinationRef.current);
 
       // Create a combined stream with webcam video and mixed audio
       const combinedStream = new MediaStream([
         ...webcamStream.getVideoTracks(),
         ...audioDestinationRef.current.stream.getAudioTracks()
       ]);
-
-      // Store webcam stream reference
-      webcamStreamRef.current = combinedStream;
-
-      // Set up display for webcam preview
-      if (webcamRef.current) {
-        webcamRef.current.srcObject = webcamStream;
-        webcamRef.current.muted = true;
-      }
 
       // Setup and start media recorder with combined stream
       setupMediaRecorder(combinedStream);
