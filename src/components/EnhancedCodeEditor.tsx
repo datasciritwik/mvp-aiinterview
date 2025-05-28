@@ -2,45 +2,17 @@ import React, { useState, useRef } from 'react';
 import { languageOptions } from '../utils/language';
 
 interface ExecutableEditorProps {
-  initialLanguage?: string;
   initialCode?: string;
   onChange?: (code: string) => void;
-  onLanguageChange?: (language: string) => void;
-  onExecuteComplete?: (output: any, error: string | null) => void;
 }
 
 const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
-  initialLanguage = 'javascript',
   initialCode,
-  onChange,
-  onLanguageChange,
-  onExecuteComplete
+  onChange
 }) => {
-  const defaultLanguage = languageOptions.find(l => l.value === initialLanguage) || languageOptions.find(l => l.value === 'javascript')!;
-  
-  const [language, setLanguage] = useState(defaultLanguage.value);
+  const defaultLanguage = languageOptions.find(l => l.value === 'javascript')!;
   const [code, setCode] = useState(initialCode || defaultLanguage.default);
-  
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLanguage = e.target.value;
-    setLanguage(newLanguage);
-    
-    const languageOption = languageOptions.find(l => l.value === newLanguage);
-    
-    if (!code.trim() || code === defaultLanguage.default) {
-      const newDefaultCode = languageOption?.default || '';
-      setCode(newDefaultCode);
-      if (onChange) {
-        onChange(newDefaultCode);
-      }
-    }
-    
-    if (onLanguageChange) {
-      onLanguageChange(newLanguage);
-    }
-  };
   
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCode = e.target.value;
@@ -73,21 +45,7 @@ const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
   };
 
   return (
-    <div className="executable-editor flex flex-col h-full">
-      <div className="bg-gray-800 p-2 flex items-center justify-between">
-        <select 
-          value={language}
-          onChange={handleLanguageChange}
-          className="bg-gray-700 text-white px-3 py-1 rounded outline-none"
-        >
-          {languageOptions.map(lang => (
-            <option key={lang.value} value={lang.value}>
-              {lang.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      
+    <div className="executable-editor flex flex-col h-full">      
       <div className="flex-1 relative">
         <textarea
           ref={editorRef}
