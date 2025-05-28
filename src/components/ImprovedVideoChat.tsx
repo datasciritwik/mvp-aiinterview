@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Video, StopCircle, Mic, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react';
+import { Video, StopCircle, MessageSquare, Clock } from 'lucide-react';
 import ExecutableEditor from './EnhancedCodeEditor';
 import { languageOptions } from '../utils/language';
 
@@ -19,7 +19,6 @@ const VideoChatWithExecution: React.FC = () => {
   // Video chat state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   
   // Code execution state
@@ -32,7 +31,7 @@ const VideoChatWithExecution: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { type: 'system', text: 'Session started' },
     { type: 'user', text: 'Ready to start your interview recording?' },
-    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam and audio.' }
+    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam.' }
   ]);
   
   // Refs
@@ -41,8 +40,6 @@ const VideoChatWithExecution: React.FC = () => {
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   
   // Clean up function when component unmounts
   useEffect(() => {
@@ -50,9 +47,6 @@ const VideoChatWithExecution: React.FC = () => {
       stopRecording();
       if (timerRef.current) {
         clearInterval(timerRef.current);
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
       }
     };
   }, []);
@@ -114,15 +108,15 @@ const VideoChatWithExecution: React.FC = () => {
     }
   };
   
-  // Start recording with system audio
+  // Start recording
   const startRecording = async () => {
     try {
       setStreamError(null);
 
-      // Get webcam and microphone first
+      // Get webcam only
       const webcamStream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: true
+        audio: false
       });
 
       // Store webcam stream reference and set up preview
@@ -132,46 +126,14 @@ const VideoChatWithExecution: React.FC = () => {
         webcamRef.current.muted = true;
       }
 
-      // Initialize audio context
-      audioContextRef.current = new AudioContext();
-      audioDestinationRef.current = audioContextRef.current.createMediaStreamDestination();
-
-      // Connect microphone to audio context
-      const micAudioSource = audioContextRef.current.createMediaStreamSource(webcamStream);
-      micAudioSource.connect(audioDestinationRef.current);
-
-      // Get system audio through display capture
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: false,
-        audio: true
-      });
-
-      // Connect system audio to audio context
-      const systemAudioSource = audioContextRef.current.createMediaStreamSource(displayStream);
-      systemAudioSource.connect(audioDestinationRef.current);
-
-      // Create a combined stream with webcam video and mixed audio
-      const combinedStream = new MediaStream([
-        ...webcamStream.getVideoTracks(),
-        ...audioDestinationRef.current.stream.getAudioTracks()
-      ]);
-
-      // Setup and start media recorder with combined stream
-      setupMediaRecorder(combinedStream);
+      // Setup and start media recorder
+      setupMediaRecorder(webcamStream);
 
       // Update recording state
       setIsRecording(true);
 
       // Add message to log
-      addMessage('system', 'Recording started with webcam, microphone, and system audio');
-
-      // Handle when user ends system audio sharing
-      displayStream.getAudioTracks()[0].onended = () => {
-        if (isRecording) {
-          addMessage('system', 'System audio sharing ended');
-          stopRecording();
-        }
-      };
+      addMessage('system', 'Recording started with webcam');
 
     } catch (err) {
       // Handle specific error types
@@ -179,11 +141,11 @@ const VideoChatWithExecution: React.FC = () => {
       
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          errorMessage = "Permission denied. Please allow access to audio and camera.";
+          errorMessage = "Permission denied. Please allow access to camera.";
         } else if (err.name === 'NotFoundError') {
-          errorMessage = "Audio device or camera not found. Please check your connections.";
+          errorMessage = "Camera not found. Please check your connection.";
         } else if (err.name === 'NotReadableError') {
-          errorMessage = "Could not access your devices. They might be in use by another application.";
+          errorMessage = "Could not access your camera. It might be in use by another application.";
         } else if (err.name === 'NotSupportedError') {
           errorMessage = "Your browser doesn't support the required recording features.";
         } else {
@@ -197,11 +159,6 @@ const VideoChatWithExecution: React.FC = () => {
         webcamStreamRef.current = null;
       }
       
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      
       console.error("Error starting recording:", err);
       setStreamError(errorMessage);
       addMessage('system', `Recording error: ${errorMessage}`);
@@ -210,26 +167,15 @@ const VideoChatWithExecution: React.FC = () => {
   
   // Helper to get supported MIME type
   const getSupportedMimeType = () => {
-    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
-      return 'video/webm;codecs=vp9,opus';
-    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
-      return 'video/webm;codecs=vp8,opus';
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+      return 'video/webm;codecs=vp9';
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+      return 'video/webm;codecs=vp8';
     } else if (MediaRecorder.isTypeSupported('video/webm')) {
       return 'video/webm';
     } else {
       return ''; // Default to browser's choice
     }
-  };
-  
-  // Toggle mute functionality
-  const toggleMute = () => {
-    if (webcamStreamRef.current) {
-      webcamStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = isMuted;
-      });
-    }
-    
-    setIsMuted(!isMuted);
   };
   
   // Save the recording locally
@@ -266,18 +212,12 @@ const VideoChatWithExecution: React.FC = () => {
       webcamStreamRef.current = null;
     }
     
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    
     if (webcamRef.current) {
       webcamRef.current.srcObject = null;
     }
     
     setIsRecording(false);
     setRecordingTime(0);
-    setIsMuted(false);
     
     addMessage('system', 'Recording stopped');
   };
@@ -340,9 +280,9 @@ const VideoChatWithExecution: React.FC = () => {
                 <div className="bg-white rounded">
                   <div className="flex items-center space-x-2 mb-2">
                     {error ? (
-                      <XCircle className="h-5 w-5 text-red-500" />
+                      <div className="h-5 w-5 text-red-500">❌</div>
                     ) : (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <div className="h-5 w-5 text-green-500">✅</div>
                     )}
                     <h2 className="text-lg font-semibold">
                       {error ? 'Error' : 'Output'}
@@ -422,16 +362,10 @@ const VideoChatWithExecution: React.FC = () => {
               
               {isRecording && (
                 <div className="absolute top-2 right-2 flex items-center">
-                  <div className="flex items-center mr-2">
+                  <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full bg-red-500 mr-1 animate-pulse"></div>
                     <span className="text-white text-xs">REC</span>
                   </div>
-                  <button 
-                    onClick={toggleMute}
-                    className={`p-1 rounded-full ${isMuted ? 'bg-red-500' : 'bg-amber-200'}`}
-                  >
-                    <Mic size={12} className={isMuted ? 'text-white' : 'text-gray-800'} />
-                  </button>
                 </div>
               )}
             </div>
@@ -468,7 +402,7 @@ const VideoChatWithExecution: React.FC = () => {
               {isRecording && (
                 <div className="text-xs bg-amber-50 text-amber-800 p-2 rounded flex items-center">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  Recording in progress. Your webcam, microphone, and system audio are being captured.
+                  Recording in progress. Your webcam video is being captured.
                 </div>
               )}
             </div>
