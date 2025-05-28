@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Video, StopCircle, Monitor, Clock, MessageSquare, Mic, CheckCircle, XCircle } from 'lucide-react';
+import { Video, StopCircle, Mic, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react';
 import ExecutableEditor from './EnhancedCodeEditor';
 import { languageOptions } from '../utils/language';
 
@@ -23,7 +23,7 @@ const VideoChatWithExecution: React.FC = () => {
   const [streamError, setStreamError] = useState<string | null>(null);
   
   // Code execution state
-  const [code, setCode] = useState(languageOptions[1].default); // Start with JavaScript
+  const [code, setCode] = useState(languageOptions[1].default);
   const [selectedLanguage, setSelectedLanguage] = useState(languageOptions[1].value);
   const [output, setOutput] = useState<ExecutionOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,20 +32,15 @@ const VideoChatWithExecution: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { type: 'system', text: 'Session started' },
     { type: 'user', text: 'Ready to start your interview recording?' },
-    { type: 'assistant', text: 'Click "Start Recording" to begin the session with both screen and webcam.' }
+    { type: 'assistant', text: 'Click "Start Recording" to begin recording your webcam and audio.' }
   ]);
   
   // Refs
-  const videoRef = useRef<HTMLVideoElement>(null);
   const webcamRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const screenStreamRef = useRef<MediaStream | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const appContainerRef = useRef<HTMLDivElement>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
-  const recordingCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const canvasStreamRef = useRef<MediaStream | null>(null);
   
   // Clean up function when component unmounts
   useEffect(() => {
@@ -75,105 +70,6 @@ const VideoChatWithExecution: React.FC = () => {
       }
     };
   }, [isRecording]);
-
-  // Add fullscreen change event listener
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      // If we exit fullscreen while recording, stop the recording
-      if (!document.fullscreenElement && isRecording) {
-        addMessage('system', 'Recording stopped due to exiting fullscreen mode');
-        stopRecording();
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, [isRecording]);
-  
-  // Exit fullscreen mode
-  const exitFullscreenMode = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.error("Error exiting fullscreen:", err);
-    }
-  };
-
-  // Create and setup a canvas for combining screen and webcam
-  const setupCombinedRecording = (screenStream: MediaStream, webcamStream: MediaStream) => {
-    try {
-      // Create a canvas if it doesn't exist
-      if (!recordingCanvasRef.current) {
-        recordingCanvasRef.current = document.createElement('canvas');
-        recordingCanvasRef.current.width = 1280;  // You can adjust these dimensions
-        recordingCanvasRef.current.height = 720;
-      }
-      
-      const canvas = recordingCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        throw new Error("Could not get canvas context");
-      }
-      
-      // Create video elements to play the streams
-      const screenVideo = document.createElement('video');
-      screenVideo.srcObject = screenStream;
-      screenVideo.autoplay = true;
-      screenVideo.muted = true;
-      
-      const webcamVideo = document.createElement('video');
-      webcamVideo.srcObject = webcamStream;
-      webcamVideo.autoplay = true;
-      webcamVideo.muted = true;
-      
-      // Draw both streams onto the canvas
-      const drawFrames = () => {
-        if (!isRecording) return;
-        
-        // Draw the screen capture (full canvas)
-        ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
-        
-        // Draw the webcam in a small corner (bottom-right)
-        const webcamWidth = canvas.width / 4;  // 1/4 of the canvas width
-        const webcamHeight = canvas.height / 4; // 1/4 of the canvas height
-        const webcamX = canvas.width - webcamWidth - 20; // 20px from the right edge
-        const webcamY = canvas.height - webcamHeight - 20; // 20px from the bottom edge
-        
-        ctx.drawImage(webcamVideo, webcamX, webcamY, webcamWidth, webcamHeight);
-        
-        // Add a border around the webcam
-        ctx.strokeStyle = '#00FF00';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(webcamX, webcamY, webcamWidth, webcamHeight);
-        
-        requestAnimationFrame(drawFrames);
-      };
-      
-      // Start drawing frames
-      drawFrames();
-      
-      // Get the combined stream from the canvas
-      canvasStreamRef.current = canvas.captureStream(30); // 30 fps
-      
-      // Add audio from both streams (usually just need one)
-      const audioTracks = screenStream.getAudioTracks().concat(webcamStream.getAudioTracks());
-      audioTracks.forEach(track => {
-        canvasStreamRef.current?.addTrack(track);
-      });
-      
-      return canvasStreamRef.current;
-      
-    } catch (err) {
-      console.error("Error setting up combined recording:", err);
-      throw err;
-    }
-  };
 
   // Helper function to handle MediaRecorder setup
   const setupMediaRecorder = (stream: MediaStream) => {
@@ -213,90 +109,42 @@ const VideoChatWithExecution: React.FC = () => {
     }
   };
   
-  // Start recording with both screen and webcam
-  const startCombinedRecording = async () => {
+  // Start recording webcam and audio
+  const startRecording = async () => {
     try {
       setStreamError(null);
       
-      // Request fullscreen FIRST, before any async operations
-      if (appContainerRef.current && !document.fullscreenElement) {
-        try {
-          await appContainerRef.current.requestFullscreen();
-        } catch (fullscreenError) {
-          console.error("Fullscreen error:", fullscreenError);
-          addMessage('system', 'Recording requires fullscreen mode. Please allow fullscreen.');
-          return;
-        }
-      }
-      
-      // Then request screen capture
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
-        video: {
-          displaySurface: 'browser' as any
-        },
-        audio: true
-      });
-      
-      // Store screen stream reference
-      screenStreamRef.current = displayStream;
-      
-      // If possible, check if the user selected the current tab
-      const screenVideoTrack = displayStream.getVideoTracks()[0];
-      if (screenVideoTrack?.getSettings) {
-        const settings = screenVideoTrack.getSettings();
-        if (settings.displaySurface && settings.displaySurface !== 'browser') {
-          addMessage('system', 'For best results, please select "This Tab" when sharing your screen.');
-        }
-      }
-      
-      // Request webcam access after screen capture
-      const webcamStream = await navigator.mediaDevices.getUserMedia({ 
+      // Request webcam and audio access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
         audio: true 
       });
       
       // Store webcam stream reference
-      webcamStreamRef.current = webcamStream;
+      webcamStreamRef.current = stream;
       
       // Set up display for webcam preview
       if (webcamRef.current) {
-        webcamRef.current.srcObject = webcamStream;
+        webcamRef.current.srcObject = stream;
         webcamRef.current.muted = true;
       }
       
-      // Handle when user ends screen sharing via browser UI
-      displayStream.getVideoTracks()[0].addEventListener('ended', () => {
-        if (isRecording) {
-          addMessage('system', 'Recording stopped due to ending screen share');
-          stopRecording();
-        }
-      });
-      
-      // Set up combined recording of screen and webcam
-      const combinedStream = setupCombinedRecording(displayStream, webcamStream);
-      
-      // Setup and start media recorder with the combined stream
-      setupMediaRecorder(combinedStream);
+      // Setup and start media recorder
+      setupMediaRecorder(stream);
       
       // Update recording state
       setIsRecording(true);
       
       // Add message to log
-      addMessage('system', 'Recording started with screen and webcam');
+      addMessage('system', 'Recording started with webcam and audio');
       
     } catch (err) {
       // Cleanup any streams that might have been created
-      if (screenStreamRef.current) {
-        screenStreamRef.current.getTracks().forEach(track => track.stop());
-        screenStreamRef.current = null;
-      }
-      
       if (webcamStreamRef.current) {
         webcamStreamRef.current.getTracks().forEach(track => track.stop());
         webcamStreamRef.current = null;
       }
       
-      exitFullscreenMode(); // Exit fullscreen if there's an error
       console.error("Error starting recording:", err);
       setStreamError(err instanceof Error ? err.message : "Failed to start recording");
       addMessage('system', `Recording error: ${err instanceof Error ? err.message : "Failed to start recording"}`);
@@ -320,12 +168,6 @@ const VideoChatWithExecution: React.FC = () => {
   const toggleMute = () => {
     if (webcamStreamRef.current) {
       webcamStreamRef.current.getAudioTracks().forEach(track => {
-        track.enabled = isMuted;
-      });
-    }
-    
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getAudioTracks().forEach(track => {
         track.enabled = isMuted;
       });
     }
@@ -362,31 +204,14 @@ const VideoChatWithExecution: React.FC = () => {
       mediaRecorderRef.current.stop();
     }
     
-    if (canvasStreamRef.current) {
-      canvasStreamRef.current.getTracks().forEach(track => track.stop());
-      canvasStreamRef.current = null;
-    }
-    
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(track => track.stop());
-      screenStreamRef.current = null;
-    }
-    
     if (webcamStreamRef.current) {
       webcamStreamRef.current.getTracks().forEach(track => track.stop());
       webcamStreamRef.current = null;
     }
     
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
     if (webcamRef.current) {
       webcamRef.current.srcObject = null;
     }
-    
-    // Exit fullscreen mode
-    exitFullscreenMode();
     
     setIsRecording(false);
     setRecordingTime(0);
@@ -424,7 +249,7 @@ const VideoChatWithExecution: React.FC = () => {
   };
 
   return (
-    <div ref={appContainerRef} className="flex h-screen bg-amber-50 text-gray-800">
+    <div className="flex h-screen bg-amber-50 text-gray-800">
       <div className="flex w-full p-4">
         {/* Left side - Code Editor and Output */}
         <div className="flex flex-col w-3/5 pr-4 h-full">
@@ -566,9 +391,9 @@ const VideoChatWithExecution: React.FC = () => {
                 ) : (
                   <button 
                     className="px-6 py-2 rounded-lg bg-green-600 text-white font-medium flex items-center gap-2"
-                    onClick={startCombinedRecording}
+                    onClick={startRecording}
                   >
-                    <Monitor size={18} />
+                    <Video size={18} />
                     Start Recording
                   </button>
                 )}
@@ -582,7 +407,7 @@ const VideoChatWithExecution: React.FC = () => {
               {isRecording && (
                 <div className="text-xs bg-amber-50 text-amber-800 p-2 rounded flex items-center">
                   <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  Recording in progress. Both screen and webcam are being captured. Exiting fullscreen will stop recording.
+                  Recording in progress. Your webcam and audio are being captured.
                 </div>
               )}
             </div>
