@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Play, Loader2 } from 'lucide-react';
-import { languageOptions, executeCode } from '../utils/language';
+import { languageOptions } from '../utils/language';
 
 interface ExecutableEditorProps {
   initialLanguage?: string;
@@ -17,12 +16,10 @@ const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
   onLanguageChange,
   onExecuteComplete
 }) => {
-  // Find the language option or default to JavaScript
   const defaultLanguage = languageOptions.find(l => l.value === initialLanguage) || languageOptions.find(l => l.value === 'javascript')!;
   
   const [language, setLanguage] = useState(defaultLanguage.value);
   const [code, setCode] = useState(initialCode || defaultLanguage.default);
-  const [isExecuting, setIsExecuting] = useState(false);
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
   
@@ -32,7 +29,6 @@ const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
     
     const languageOption = languageOptions.find(l => l.value === newLanguage);
     
-    // If the code is empty or matches the default for the previous language, update it
     if (!code.trim() || code === defaultLanguage.default) {
       const newDefaultCode = languageOption?.default || '';
       setCode(newDefaultCode);
@@ -61,11 +57,9 @@ const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       
-      // Insert 2 spaces for tab
       const newCode = code.substring(0, start) + '  ' + code.substring(end);
       setCode(newCode);
       
-      // Move cursor position after the inserted tab
       setTimeout(() => {
         if (textarea) {
           textarea.selectionStart = textarea.selectionEnd = start + 2;
@@ -77,28 +71,7 @@ const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
       }
     }
   };
-  
-  const runCode = async () => {
-    if (isExecuting) return;
-    
-    setIsExecuting(true);
-    try {
-      const result = await executeCode(language, code);
-      
-      // We'll pass the raw result object to the parent component
-      // The parent will handle displaying stdout, stderr, and exit_code
-      if (onExecuteComplete) {
-        onExecuteComplete(result, null);
-      }
-    } catch (error) {
-      if (onExecuteComplete) {
-        onExecuteComplete(null, error instanceof Error ? error.message : String(error));
-      }
-    } finally {
-      setIsExecuting(false);
-    }
-  };
-  
+
   return (
     <div className="executable-editor flex flex-col h-full">
       <div className="bg-gray-800 p-2 flex items-center justify-between">
@@ -113,21 +86,6 @@ const ExecutableEditor: React.FC<ExecutableEditorProps> = ({
             </option>
           ))}
         </select>
-        
-        <button 
-          onClick={runCode}
-          disabled={isExecuting}
-          className={`px-4 py-1 rounded text-white flex items-center space-x-2 ${
-            isExecuting ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-          }`}
-        >
-          {isExecuting ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-          ) : (
-            <Play className="h-4 w-4 mr-1" />
-          )}
-          <span>{isExecuting ? 'Executing...' : 'Run Code'}</span>
-        </button>
       </div>
       
       <div className="flex-1 relative">
