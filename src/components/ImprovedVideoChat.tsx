@@ -13,7 +13,6 @@ const VideoChatWithExecution: React.FC = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [code, setCode] = useState(languageOptions[1].default);
-  const [selectedLanguage, setSelectedLanguage] = useState(languageOptions[1].value);
   const [messages, setMessages] = useState<Message[]>([]);
   
   const webcamRef = useRef<HTMLVideoElement>(null);
@@ -286,12 +285,13 @@ const VideoChatWithExecution: React.FC = () => {
           </div>
           <div className="p-4 bg-gray-700">
             <div className="flex items-center">
-              <input
-                type="text"
+              <textarea
                 placeholder="Type here..."
-                className="flex-1 px-4 py-2 rounded-l bg-gray-600 text-white placeholder-gray-400 focus:outline-none"
+                className="flex-1 px-4 py-2 rounded bg-gray-600 text-white placeholder-gray-400 focus:outline-none resize-none"
+                rows={2}
+                style={{ minHeight: '60px' }}
               />
-              <button className="px-4 py-2 bg-gray-600 rounded-r">
+              <button className="ml-2 px-4 py-2 h-full bg-gray-600 rounded">
                 <span className="transform rotate-90 inline-block text-white">➤</span>
               </button>
             </div>
