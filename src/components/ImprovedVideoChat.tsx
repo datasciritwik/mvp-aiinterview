@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Video, StopCircle, MessageSquare } from 'lucide-react';
+import { Video, StopCircle } from 'lucide-react';
 import ExecutableEditor from './EnhancedCodeEditor';
 import { languageOptions } from '../utils/language';
 
@@ -9,30 +9,19 @@ interface Message {
 }
 
 const VideoChatWithExecution: React.FC = () => {
-  // Video chat state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [streamError, setStreamError] = useState<string | null>(null);
-  
-  // Code execution state
   const [code, setCode] = useState(languageOptions[1].default);
   const [selectedLanguage, setSelectedLanguage] = useState(languageOptions[1].value);
+  const [messages, setMessages] = useState<Message[]>([]);
   
-  // Message log
-  const [messages, setMessages] = useState<Message[]>([
-    { type: 'system', text: 'Session started' },
-    { type: 'user', text: 'Ready to start your interview recording?' },
-    { type: 'assistant', text: 'Click the record button to begin.' }
-  ]);
-  
-  // Refs
   const webcamRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<BlobPart[]>([]);
-  
-  // Clean up function when component unmounts
+
   useEffect(() => {
     return () => {
       stopRecording();
@@ -41,8 +30,7 @@ const VideoChatWithExecution: React.FC = () => {
       }
     };
   }, []);
-  
-  // Timer effect for recording
+
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
@@ -53,7 +41,6 @@ const VideoChatWithExecution: React.FC = () => {
         clearInterval(timerRef.current);
       }
     }
-    
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -61,7 +48,6 @@ const VideoChatWithExecution: React.FC = () => {
     };
   }, [isRecording]);
 
-  // Helper function to handle MediaRecorder setup
   const setupMediaRecorder = (stream: MediaStream) => {
     try {
       const options = { mimeType: getSupportedMimeType() };
@@ -94,12 +80,10 @@ const VideoChatWithExecution: React.FC = () => {
       throw err;
     }
   };
-  
-  // Start recording
+
   const startRecording = async () => {
     try {
       setStreamError(null);
-
       const webcamStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false
@@ -114,7 +98,6 @@ const VideoChatWithExecution: React.FC = () => {
       setupMediaRecorder(webcamStream);
       setIsRecording(true);
       addMessage('system', 'Recording started');
-
     } catch (err) {
       let errorMessage = "Failed to start recording";
       
@@ -142,7 +125,7 @@ const VideoChatWithExecution: React.FC = () => {
       addMessage('system', `Recording error: ${errorMessage}`);
     }
   };
-  
+
   const getSupportedMimeType = () => {
     if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
       return 'video/webm;codecs=vp9';
@@ -154,7 +137,7 @@ const VideoChatWithExecution: React.FC = () => {
       return '';
     }
   };
-  
+
   const saveRecordingLocally = (blob: Blob) => {
     try {
       const url = URL.createObjectURL(blob);
@@ -175,7 +158,7 @@ const VideoChatWithExecution: React.FC = () => {
       addMessage('system', `Error saving locally: ${err instanceof Error ? err.message : "Unknown error occurred"}`);
     }
   };
-  
+
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
@@ -194,11 +177,11 @@ const VideoChatWithExecution: React.FC = () => {
     setRecordingTime(0);
     addMessage('system', 'Recording stopped');
   };
-  
+
   const addMessage = (type: 'user' | 'assistant' | 'system', text: string) => {
     setMessages(prev => [...prev, { type, text }]);
   };
-  
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
     const secs = (seconds % 60).toString().padStart(2, '0');
@@ -206,114 +189,124 @@ const VideoChatWithExecution: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto grid grid-cols-2 gap-6">
-        {/* Left side - Code Editor */}
-        <div className="flex flex-col space-y-6">
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden flex-1">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="font-medium text-gray-700">Code Editor</h2>
+    <div className="min-h-screen bg-gray-900 flex">
+      {/* Left side - Code Editor */}
+      <div className="w-3/5 border-r border-gray-700">
+        <div className="h-screen flex flex-col">
+          <div className="flex items-center justify-between bg-gray-800 px-4 py-2">
+            <div className="flex items-center">
+              <span className="text-white font-medium">Code Editor</span>
             </div>
-            <div className="h-[calc(100vh-200px)]">
-              <ExecutableEditor
-                initialLanguage={selectedLanguage}
-                initialCode={code}
-                onChange={setCode}
-                onLanguageChange={setSelectedLanguage}
-                onExecuteComplete={(result, error) => {
-                  if (error) {
-                    addMessage('system', `Code execution error: ${error}`);
-                  } else if (result) {
-                    addMessage('system', 'Code executed successfully');
-                  }
-                }}
-              />
-            </div>
+            <button className="px-4 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
+              Submit Code
+            </button>
+          </div>
+          <div className="flex-1">
+            <ExecutableEditor
+              initialLanguage={selectedLanguage}
+              initialCode={code}
+              onChange={setCode}
+              onLanguageChange={setSelectedLanguage}
+              onExecuteComplete={(result, error) => {
+                if (error) {
+                  addMessage('system', `Code execution error: ${error}`);
+                } else if (result) {
+                  addMessage('system', 'Code executed successfully');
+                }
+              }}
+            />
           </div>
         </div>
+      </div>
 
-        {/* Right side - Video Preview and Session Log */}
-        <div className="space-y-6">
-          {/* Video Preview and Controls */}
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="relative">
-              <div className="aspect-video bg-gray-900">
-                <video
-                  ref={webcamRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                  muted={true}
-                />
-                {!isRecording && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
-                    {streamError ? (
-                      <div className="text-center px-6">
-                        <p className="text-red-400 text-sm">{streamError}</p>
-                      </div>
-                    ) : (
-                      <Video className="w-16 h-16 text-gray-400 opacity-50" />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Recording Timer */}
-              {isRecording && (
-                <div className="absolute top-4 right-4">
-                  <div className="bg-black bg-opacity-50 rounded-lg px-3 py-1.5 flex items-center">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2"></div>
-                    <span className="text-white text-sm font-medium">{formatTime(recordingTime)}</span>
-                  </div>
-                </div>
+      {/* Right side - Video and Chat */}
+      <div className="w-2/5 flex flex-col h-screen">
+        {/* Video Preview */}
+        <div className="relative bg-gray-800 h-64">
+          <video
+            ref={webcamRef}
+            className="w-full h-full object-cover"
+            autoPlay
+            playsInline
+            muted={true}
+          />
+          {!isRecording && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
+              {streamError ? (
+                <p className="text-red-400 text-sm px-6 text-center">{streamError}</p>
+              ) : (
+                <Video className="w-16 h-16 text-gray-400 opacity-50" />
               )}
-
-              {/* Recording Controls */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                <button
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className={`${
-                    isRecording 
-                      ? 'bg-red-500 hover:bg-red-600' 
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  } text-white rounded-full p-3 flex items-center justify-center shadow-lg transition-colors duration-200`}
-                >
-                  {isRecording ? (
-                    <StopCircle className="w-6 h-6" />
-                  ) : (
-                    <Video className="w-6 h-6" />
-                  )}
-                </button>
+            </div>
+          )}
+          
+          {/* Recording Timer */}
+          {isRecording && (
+            <div className="absolute top-4 right-4">
+              <div className="bg-black bg-opacity-50 rounded-lg px-3 py-1.5 flex items-center">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2"></div>
+                <span className="text-white text-sm font-medium">{formatTime(recordingTime)}</span>
               </div>
             </div>
+          )}
+
+          {/* Recording Control */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`${
+                isRecording 
+                  ? 'bg-red-500 hover:bg-red-600' 
+                  : 'bg-blue-500 hover:bg-blue-600'
+              } text-white rounded-full p-3 flex items-center justify-center shadow-lg transition-colors duration-200`}
+            >
+              {isRecording ? (
+                <StopCircle className="w-6 h-6" />
+              ) : (
+                <Video className="w-6 h-6" />
+              )}
+            </button>
           </div>
+        </div>
 
-          {/* Session Log */}
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center">
-              <MessageSquare className="w-5 h-5 text-gray-500 mr-2" />
-              <h2 className="font-medium text-gray-700">Session Log</h2>
-            </div>
-            <div className="p-4 h-[300px] overflow-y-auto">
-              <div className="space-y-3">
-                {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg ${
-                      message.type === 'user'
-                        ? 'bg-blue-50 text-blue-700 ml-4'
-                        : message.type === 'assistant'
-                        ? 'bg-gray-50 text-gray-700 mr-4'
-                        : 'bg-amber-50 text-amber-700 text-sm'
-                    }`}
-                  >
-                    {message.text}
-                  </div>
-                ))}
+        {/* Chat/Logs Section */}
+        <div className="flex-1 bg-gray-100 flex flex-col">
+          <div className="p-4 font-medium text-gray-700 bg-gray-200">
+            Logs/Chat
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded-lg ${
+                  message.type === 'user'
+                    ? 'bg-blue-50 text-blue-700'
+                    : message.type === 'assistant'
+                    ? 'bg-gray-50 text-gray-700'
+                    : 'bg-amber-50 text-amber-700 text-sm'
+                }`}
+              >
+                {message.text}
               </div>
+            ))}
+          </div>
+          <div className="p-4 bg-gray-700">
+            <div className="flex items-center">
+              <input
+                type="text"
+                placeholder="Type here..."
+                className="flex-1 px-4 py-2 rounded-l bg-gray-600 text-white placeholder-gray-400 focus:outline-none"
+              />
+              <button className="px-4 py-2 bg-gray-600 rounded-r">
+                <span className="transform rotate-90 inline-block text-white">➤</span>
+              </button>
             </div>
           </div>
         </div>
+
+        <button className="bg-orange-600 text-white py-3 hover:bg-orange-700 transition-colors">
+          Submit Interview
+        </button>
       </div>
     </div>
   );
