@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Video, StopCircle, MessageSquare, Clock } from 'lucide-react';
+import { Video, StopCircle, MessageSquare, Clock, Code2, Terminal, CheckCircle, XCircle } from 'lucide-react';
 import ExecutableEditor from './EnhancedCodeEditor';
 import { languageOptions } from '../utils/language';
 
@@ -250,186 +250,189 @@ const VideoChatWithExecution: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-amber-50 text-gray-800">
-      <div className="flex w-full p-4">
-        {/* Left side - Code Editor and Output */}
-        <div className="flex flex-col w-3/5 pr-4 h-full">
-          {/* Code Editor */}
-          <div className="flex-1 flex flex-col rounded-lg overflow-hidden shadow-md mb-4">
-            <div className="bg-amber-100 px-4 py-3 font-semibold border-b border-amber-200">
-              Code Editor
-            </div>
-            <div className="flex-1 bg-gray-900 text-amber-50 font-mono text-sm overflow-hidden">
-              <ExecutableEditor
-                initialLanguage={selectedLanguage}
-                initialCode={code}
-                onChange={setCode}
-                onLanguageChange={setSelectedLanguage}
-                onExecuteComplete={handleExecutionComplete}
-              />
-            </div>
-          </div>
-          
-          {/* Output section */}
-          <div className="bg-amber-100 rounded-lg shadow-md h-48 overflow-hidden flex flex-col">
-            <div className="px-4 py-3 font-semibold border-b border-amber-200">
-              Output
-            </div>
-            <div className="bg-white p-4 font-mono text-sm flex-1 overflow-auto">
-              {error || output ? (
-                <div className="bg-white rounded">
-                  <div className="flex items-center space-x-2 mb-2">
-                    {error ? (
-                      <div className="h-5 w-5 text-red-500">❌</div>
-                    ) : (
-                      <div className="h-5 w-5 text-green-500">✅</div>
-                    )}
-                    <h2 className="text-lg font-semibold">
-                      {error ? 'Error' : 'Output'}
-                    </h2>
-                  </div>
-                  
-                  {error ? (
-                    <div className="text-red-500 whitespace-pre-wrap">{error}</div>
-                  ) : output && (
-                    <div className="space-y-2">
-                      {output.stdout && (
-                        <div className="bg-gray-100 p-3 rounded">
-                          <h3 className="font-semibold mb-1">Standard Output:</h3>
-                          <pre className="whitespace-pre-wrap">{output.stdout}</pre>
-                        </div>
-                      )}
-                      
-                      {output.stderr && (
-                        <div className="bg-gray-100 p-3 rounded">
-                          <h3 className="font-semibold mb-1">Standard Error:</h3>
-                          <pre className="whitespace-pre-wrap">{output.stderr}</pre>
-                        </div>
-                      )}
-                      
-                      {output.result && typeof output.result === 'string' && !output.stdout && (
-                        <div className="bg-gray-100 p-3 rounded">
-                          <h3 className="font-semibold mb-1">Result:</h3>
-                          <pre className="whitespace-pre-wrap">{output.result}</pre>
-                        </div>
-                      )}
-                      
-                      {output.exit_code !== undefined && (
-                        <div className="text-sm text-gray-500">
-                          Exit Code: {output.exit_code}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-gray-500 flex items-center justify-center h-full">
-                  Click "Run Code" to see output here
-                </div>
-              )}
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-amber-100">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+            <Code2 className="w-8 h-8 mr-3 text-amber-600" />
+            Interactive Coding Interview
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Record your coding session while solving problems in real-time
+          </p>
         </div>
-        
-        {/* Right side - Display and Controls */}
-        <div className="w-2/5 pl-4 flex flex-col h-full">
-          {/* Webcam preview */}
-          <div className="bg-amber-100 rounded-lg shadow-md overflow-hidden mb-4">
-            <div className="px-4 py-2 font-semibold border-b border-amber-200">
-              Webcam Preview
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Left Column - Code Editor and Output */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Code Editor Card */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gray-800 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <Terminal className="w-5 h-5 text-amber-400 mr-2" />
+                  <h2 className="text-lg font-semibold text-white">Code Editor</h2>
+                </div>
+              </div>
+              <div className="h-[400px]">
+                <ExecutableEditor
+                  initialLanguage={selectedLanguage}
+                  initialCode={code}
+                  onChange={setCode}
+                  onLanguageChange={setSelectedLanguage}
+                  onExecuteComplete={handleExecutionComplete}
+                />
+              </div>
             </div>
-            <div className="h-48 bg-gray-900 relative overflow-hidden">
-              <video 
-                ref={webcamRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted={true}
-              />
-              
-              {!isRecording && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70">
-                  {streamError ? (
-                    <div className="text-red-400 text-center px-4">
-                      <div className="text-lg mb-1">Recording Error</div>
-                      <div className="text-xs">{streamError}</div>
+
+            {/* Output Card */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center">
+                <Terminal className="w-5 h-5 text-gray-500 mr-2" />
+                <h2 className="text-lg font-semibold text-gray-800">Output</h2>
+              </div>
+              <div className="p-6 h-[200px] overflow-auto">
+                {error || output ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      {error ? (
+                        <XCircle className="w-6 h-6 text-red-500 mr-2" />
+                      ) : (
+                        <CheckCircle className="w-6 h-6 text-green-500 mr-2" />
+                      )}
+                      <h3 className="text-lg font-semibold">
+                        {error ? 'Error' : 'Success'}
+                      </h3>
                     </div>
-                  ) : (
-                    <Video className="text-amber-200 opacity-50" size={48} />
-                  )}
-                </div>
-              )}
-              
-              {isRecording && (
-                <div className="absolute top-2 right-2 flex items-center">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-red-500 mr-1 animate-pulse"></div>
-                    <span className="text-white text-xs">REC</span>
+                    
+                    {error ? (
+                      <div className="bg-red-50 border border-red-100 rounded-lg p-4 text-red-700 font-mono text-sm">
+                        {error}
+                      </div>
+                    ) : output && (
+                      <div className="space-y-4">
+                        {output.stdout && (
+                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+                            <div className="text-sm font-semibold text-gray-700 mb-2">Standard Output:</div>
+                            <pre className="font-mono text-sm text-gray-600 whitespace-pre-wrap">{output.stdout}</pre>
+                          </div>
+                        )}
+                        {output.result && !output.stdout && (
+                          <div className="bg-gray-50 border border-gray-100 rounded-lg p-4">
+                            <div className="text-sm font-semibold text-gray-700 mb-2">Result:</div>
+                            <pre className="font-mono text-sm text-gray-600 whitespace-pre-wrap">{output.result}</pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    Run your code to see the output here
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          
-          {/* Recording Controls */}
-          <div className="bg-amber-100 rounded-lg shadow-md p-4 mb-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
+
+          {/* Right Column - Video and Controls */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Video Preview Card */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center">
+                  <Video className="w-5 h-5 text-gray-500 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-800">Video Preview</h2>
+                </div>
+                {isRecording && (
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2"></div>
+                    <span className="text-sm text-red-500 font-medium">REC</span>
+                  </div>
+                )}
+              </div>
+              <div className="aspect-video bg-gray-900 relative">
+                <video
+                  ref={webcamRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  muted={true}
+                />
+                {!isRecording && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
+                    {streamError ? (
+                      <div className="text-center px-6">
+                        <XCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                        <p className="text-red-400 text-sm">{streamError}</p>
+                      </div>
+                    ) : (
+                      <Video className="w-16 h-16 text-gray-400 opacity-50" />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recording Controls Card */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
                 {isRecording ? (
-                  <button 
-                    className="px-6 py-2 rounded-lg bg-red-500 text-white font-medium flex items-center gap-2"
+                  <button
                     onClick={stopRecording}
+                    className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium flex items-center transition-colors duration-200"
                   >
-                    <StopCircle size={18} />
+                    <StopCircle className="w-5 h-5 mr-2" />
                     Stop Recording
                   </button>
                 ) : (
-                  <button 
-                    className="px-6 py-2 rounded-lg bg-green-600 text-white font-medium flex items-center gap-2"
+                  <button
                     onClick={startRecording}
+                    className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium flex items-center transition-colors duration-200"
                   >
-                    <Video size={18} />
+                    <Video className="w-5 h-5 mr-2" />
                     Start Recording
                   </button>
                 )}
-                
-                <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-lg shadow-sm">
-                  <Clock size={18} className="text-amber-700" />
-                  <span className="font-mono text-amber-800">{formatTime(recordingTime)}</span>
+                <div className="flex items-center bg-gray-50 px-4 py-2 rounded-lg">
+                  <Clock className="w-5 h-5 text-gray-500 mr-2" />
+                  <span className="font-mono text-gray-700">{formatTime(recordingTime)}</span>
                 </div>
               </div>
-              
               {isRecording && (
-                <div className="text-xs bg-amber-50 text-amber-800 p-2 rounded flex items-center">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                  Recording in progress. Your webcam video is being captured.
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 text-amber-700 text-sm">
+                  <p className="flex items-center">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
+                    Recording in progress. Your video is being captured.
+                  </p>
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Conversation Logs */}
-          <div className="flex-1 bg-amber-100 rounded-lg shadow-md overflow-hidden flex flex-col">
-            <div className="px-4 py-3 font-semibold border-b border-amber-200 flex items-center">
-              <MessageSquare className="mr-2" size={16} />
-              Conversation Logs
-            </div>
-            
-            <div className="flex-1 bg-white p-3 overflow-y-auto">
-              {messages.map((message, index) => (
-                <div 
-                  key={index} 
-                  className={`mb-2 p-2 rounded ${
-                    message.type === 'user' 
-                      ? 'bg-amber-200 text-gray-800 ml-4' 
-                      : message.type === 'assistant'
-                        ? 'bg-gray-100 text-gray-800 mr-4'
-                        : 'bg-amber-50 text-gray-500 text-xs'
-                  }`}
-                >
-                  {message.text}
+
+            {/* Messages Card */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center">
+                <MessageSquare className="w-5 h-5 text-gray-500 mr-2" />
+                <h2 className="text-lg font-semibold text-gray-800">Session Log</h2>
+              </div>
+              <div className="p-4 h-[300px] overflow-y-auto">
+                <div className="space-y-3">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`p-3 rounded-lg ${
+                        message.type === 'user'
+                          ? 'bg-blue-50 text-blue-700 ml-4'
+                          : message.type === 'assistant'
+                          ? 'bg-gray-50 text-gray-700 mr-4'
+                          : 'bg-amber-50 text-amber-700 text-sm'
+                      }`}
+                    >
+                      {message.text}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
