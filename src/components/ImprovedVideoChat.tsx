@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Video, StopCircle, MessageSquare } from 'lucide-react';
+import ExecutableEditor from './EnhancedCodeEditor';
+import { languageOptions } from '../utils/language';
 
 interface Message {
   type: 'user' | 'assistant' | 'system';
@@ -11,6 +13,10 @@ const VideoChatWithExecution: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [streamError, setStreamError] = useState<string | null>(null);
+  
+  // Code execution state
+  const [code, setCode] = useState(languageOptions[1].default);
+  const [selectedLanguage, setSelectedLanguage] = useState(languageOptions[1].value);
   
   // Message log
   const [messages, setMessages] = useState<Message[]>([
@@ -201,83 +207,110 @@ const VideoChatWithExecution: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Video Preview and Controls */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="relative">
-            <div className="aspect-video bg-gray-900">
-              <video
-                ref={webcamRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted={true}
-              />
-              {!isRecording && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
-                  {streamError ? (
-                    <div className="text-center px-6">
-                      <p className="text-red-400 text-sm">{streamError}</p>
-                    </div>
-                  ) : (
-                    <Video className="w-16 h-16 text-gray-400 opacity-50" />
-                  )}
-                </div>
-              )}
+      <div className="max-w-7xl mx-auto grid grid-cols-2 gap-6">
+        {/* Left side - Code Editor */}
+        <div className="flex flex-col space-y-6">
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden flex-1">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h2 className="font-medium text-gray-700">Code Editor</h2>
             </div>
-
-            {/* Recording Timer */}
-            {isRecording && (
-              <div className="absolute top-4 right-4">
-                <div className="bg-black bg-opacity-50 rounded-lg px-3 py-1.5 flex items-center">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2"></div>
-                  <span className="text-white text-sm font-medium">{formatTime(recordingTime)}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Recording Controls */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`${
-                  isRecording 
-                    ? 'bg-red-500 hover:bg-red-600' 
-                    : 'bg-blue-500 hover:bg-blue-600'
-                } text-white rounded-full p-3 flex items-center justify-center shadow-lg transition-colors duration-200`}
-              >
-                {isRecording ? (
-                  <StopCircle className="w-6 h-6" />
-                ) : (
-                  <Video className="w-6 h-6" />
-                )}
-              </button>
+            <div className="h-[calc(100vh-200px)]">
+              <ExecutableEditor
+                initialLanguage={selectedLanguage}
+                initialCode={code}
+                onChange={setCode}
+                onLanguageChange={setSelectedLanguage}
+                onExecuteComplete={(result, error) => {
+                  if (error) {
+                    addMessage('system', `Code execution error: ${error}`);
+                  } else if (result) {
+                    addMessage('system', 'Code executed successfully');
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
 
-        {/* Session Log */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center">
-            <MessageSquare className="w-5 h-5 text-gray-500 mr-2" />
-            <h2 className="font-medium text-gray-700">Session Log</h2>
-          </div>
-          <div className="p-4 h-[300px] overflow-y-auto">
-            <div className="space-y-3">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg ${
-                    message.type === 'user'
-                      ? 'bg-blue-50 text-blue-700 ml-4'
-                      : message.type === 'assistant'
-                      ? 'bg-gray-50 text-gray-700 mr-4'
-                      : 'bg-amber-50 text-amber-700 text-sm'
-                  }`}
-                >
-                  {message.text}
+        {/* Right side - Video Preview and Session Log */}
+        <div className="space-y-6">
+          {/* Video Preview and Controls */}
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div className="relative">
+              <div className="aspect-video bg-gray-900">
+                <video
+                  ref={webcamRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  muted={true}
+                />
+                {!isRecording && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
+                    {streamError ? (
+                      <div className="text-center px-6">
+                        <p className="text-red-400 text-sm">{streamError}</p>
+                      </div>
+                    ) : (
+                      <Video className="w-16 h-16 text-gray-400 opacity-50" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Recording Timer */}
+              {isRecording && (
+                <div className="absolute top-4 right-4">
+                  <div className="bg-black bg-opacity-50 rounded-lg px-3 py-1.5 flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-2"></div>
+                    <span className="text-white text-sm font-medium">{formatTime(recordingTime)}</span>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Recording Controls */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`${
+                    isRecording 
+                      ? 'bg-red-500 hover:bg-red-600' 
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  } text-white rounded-full p-3 flex items-center justify-center shadow-lg transition-colors duration-200`}
+                >
+                  {isRecording ? (
+                    <StopCircle className="w-6 h-6" />
+                  ) : (
+                    <Video className="w-6 h-6" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Session Log */}
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center">
+              <MessageSquare className="w-5 h-5 text-gray-500 mr-2" />
+              <h2 className="font-medium text-gray-700">Session Log</h2>
+            </div>
+            <div className="p-4 h-[300px] overflow-y-auto">
+              <div className="space-y-3">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg ${
+                      message.type === 'user'
+                        ? 'bg-blue-50 text-blue-700 ml-4'
+                        : message.type === 'assistant'
+                        ? 'bg-gray-50 text-gray-700 mr-4'
+                        : 'bg-amber-50 text-amber-700 text-sm'
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
