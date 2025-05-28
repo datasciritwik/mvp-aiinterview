@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Users, Building2, LogOut, HelpCircle } from 'lucide-react';
+import { FileText, Users, Building2, HelpCircle } from 'lucide-react';
 import JobPostCreation from './components/JobPostCreation';
 import InterviewScheduling from './components/InterviewScheduling';
-import { useAuth } from './context/AuthContext';
 import { Link } from 'react-router-dom';
-// import { auth } from './firebase/config';
 
 // Define the job post interface
 export interface JobPost {
@@ -34,7 +32,6 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const { currentUser, logout } = useAuth();
 
   // Function to fetch job posts from the API
   const fetchJobPosts = async () => {
@@ -47,7 +44,7 @@ function App() {
         headers: {
           'accept': 'application/json',
           'endpoint-api-key': import.meta.env.VITE_API_HEADER,
-          'company-id': currentUser?.uid || '' // Use Firebase userId here
+          'company-id': 'demo'
         }
       });
 
@@ -75,16 +72,6 @@ function App() {
     setActiveTab(tab);
     if (tab === 'jobs') {
       fetchJobPosts();
-    }
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await logout();
-      // The redirect will be handled by the ProtectedRoute component
-    } catch (error) {
-      console.error('Error logging out:', error);
     }
   };
 
@@ -144,22 +131,6 @@ function App() {
                   AI Interview
                 </Link>
               </div>
-            </div>
-            <div className="flex items-center">
-              {currentUser && (
-                <div className="flex items-center">
-                  <span className="text-sm text-gray-700 mr-4">
-                    {currentUser.phoneNumber}
-                  </span>
-                  <button 
-                    onClick={handleLogout}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
